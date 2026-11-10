@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<interface domain="blur-my-shell@aunetx">
+<interface domain="search-light-glass">
   <menu id="info_menu_model">
     <section>
       <item>

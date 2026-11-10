@@ -2,7 +2,7 @@
 
 A quick launcher-style search panel for GNOME Shell. Press a shortcut, type, and get apps, settings, files and more in a floating panel with a live blurred-glass background, instead of opening the Overview.
 
-Search Light Glass is a fork of [Search Light](https://github.com/icedman/search-light) by [icedman](https://github.com/icedman). All of the underlying extension is icedman's work. The fork installs side by side with the original: it has its own extension UUID (`search-light-glass@antonioestela.github.com`), settings schema and stylesheet class, so the two do not share settings.
+Search Light Glass is a fork of [Search Light](https://github.com/icedman/search-light) by [icedman](https://github.com/icedman). All of the underlying extension is icedman's work. The fork has its own extension UUID (`search-light-glass@antonioestela.github.com`) and settings schema, so the two do not share settings. It can be installed alongside the original, but enable only one of them at a time: both hook the same shell internals (the overview search entry and controller, `Main.overview.searchLight`) and use the same default shortcut.
 
 | Dark | Light |
 | --- | --- |
