@@ -101,6 +101,17 @@ SCENARIOS.edge = async ctx => {
     await ctx.shot(`edge-${scheme}.png`);
     ctx.ext.hide(); await ctx.wait(500);
   }
+  ctx.setScheme('light'); await ctx.wait(2200);
+  ctx.ext._settings.set_boolean('blur-background', false);
+  ctx.ext.show(); await ctx.wait(400); ctx.type('settings'); await ctx.wait(1500);
+  ctx.check('shadow-without-blur', !!ctx.ext._shadow?.actor && ctx.ext._glass?.actor == null);
+  await ctx.shot('edge-light-noblur.png');
+  ctx.ext.hide(); await ctx.wait(500);
+  ctx.check('shadow-gone-after-hide', ctx.ext._shadow == null);
+  ctx.ext._settings.set_boolean('blur-background', true);
+  ctx.ext.show(); await ctx.wait(600);
+  ctx.check('shadow-with-blur', !!ctx.ext._shadow?.actor && !!ctx.ext._glass?.actor);
+  ctx.ext.hide(); await ctx.wait(500);
   ctx.check('edge-done', true);
 };
 

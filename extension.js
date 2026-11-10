@@ -31,7 +31,7 @@ import Graphene from 'gi://Graphene';
 import { Timer } from './timer.js';
 import { Style } from './style.js';
 
-import { GlassLayer } from './glass.js';
+import { GlassLayer, PanelShadow } from './glass.js';
 import { resolvePalette, schemeFromColorScheme } from './theme.js';
 import { TintEffect } from './effects/tint_effect.js';
 import { MonochromeEffect } from './effects/monochrome_effect.js';
@@ -263,6 +263,7 @@ export default class SearchLightExt extends Extension {
     this._interfaceSettings = null;
 
     this._destroyGlass();
+    this._destroyShadow();
 
     if (this.accel) {
       this.accel.disable();
@@ -427,6 +428,7 @@ export default class SearchLightExt extends Extension {
     this._layout();
 
     this._destroyGlass();
+    this._destroyShadow();
     this._updateGlassPresence();
 
     global.compositor.disable_unredirect();
@@ -490,6 +492,7 @@ export default class SearchLightExt extends Extension {
           this._visible = false;
           this.mainContainer.hide();
           this._destroyGlass();
+          this._destroyShadow();
           global.compositor.enable_unredirect();
         },
       });
@@ -498,6 +501,7 @@ export default class SearchLightExt extends Extension {
       this._visible = false;
       this.mainContainer.hide();
       this._destroyGlass();
+      this._destroyShadow();
       global.compositor.enable_unredirect();
     }
     // this._hidePopups();
@@ -505,6 +509,16 @@ export default class SearchLightExt extends Extension {
 
   // The glass layer exists only while the panel is shown and blur is enabled.
   _updateGlassPresence() {
+    // The drop shadow does not depend on blur.
+    if (this._visible) {
+      if (!this._shadow) {
+        this._shadow = new PanelShadow();
+        this._shadow.attach(this.mainContainer);
+        this._updateGlassStyle();
+      }
+    } else {
+      this._destroyShadow();
+    }
     if (this._visible && this.blur_background) {
       if (!this._glass) {
         this._glass = new GlassLayer();
@@ -514,6 +528,13 @@ export default class SearchLightExt extends Extension {
       }
     } else {
       this._destroyGlass();
+    }
+  }
+
+  _destroyShadow() {
+    if (this._shadow) {
+      this._shadow.detach();
+      this._shadow = null;
     }
   }
 
@@ -547,9 +568,12 @@ export default class SearchLightExt extends Extension {
   }
 
   _updateGlassStyle() {
+    this._shadow?.setStyle({
+      radius: this._glassRadius(),
+      isLight: this._palette().isLight,
+    });
     if (!this._glass) return;
     this._glass.setStyle({
-      isLight: this._palette().isLight,
       radius: this._glassRadius(),
       tint: this._palette().tint,
       blurRadius: this.blur_sigma,
