@@ -1,74 +1,54 @@
 # Search Light Glass
 
-A fork of [Search Light](https://github.com/icedman/search-light) by [icedman](https://github.com/icedman), the GNOME Shell extension that takes the apps search out of the Overview. Search Light Glass installs side by side with the original: it has its own extension UUID (`search-light-glass@antonioestela.github.com`), settings schema and stylesheet class, so the two do not share settings.
+A quick launcher-style search panel for GNOME Shell. Press a shortcut, type, and get apps, settings, files and more in a floating panel with a live blurred-glass background, instead of opening the Overview.
 
-- Tested on GNOME 50 only. GNOME 48 and 49 are declared in `metadata.json` but untested.
-- Licensed under GPL-3.0, like the original. The original copyright stays; see `LICENSE`.
-- Upstream credit: all of the underlying extension is icedman's work.
+Search Light Glass is a fork of [Search Light](https://github.com/icedman/search-light) by [icedman](https://github.com/icedman). All of the underlying extension is icedman's work. The fork installs side by side with the original: it has its own extension UUID (`search-light-glass@antonioestela.github.com`), settings schema and stylesheet class, so the two do not share settings.
 
-The sections below are the upstream README.
+| Dark | Light |
+| --- | --- |
+| ![Dark theme](screenshots/dark.png) | ![Light theme](screenshots/light.png) |
 
----
+The editor window sits partly behind the panel in both shots, which shows the blur.
 
-<br/>
-<p align="center">
-  <h3 align="center">Search Light</h3>
+## Features
 
-  <p align="center">
-    A GNOME Shell 42+ Extension
-    <br/>
-    <br/>
-  </p>
-</p>
+- Real backdrop blur: the panel blurs whatever is behind it (wallpaper and windows), live, with rounded corners, saturation and a tint. No external tools are needed. On by default.
+- A rounded outer shadow that is always present. In light mode there is a faint dark outline so the panel stays visible over white content.
+- Automatic light and dark theme, following `org.gnome.desktop.interface color-scheme` and switching live. Colors you set yourself in the preferences override the theme.
+- Single-column, sectioned results: section titles, 28px icons, the name over a grey subtitle, and a translucent selection pill. Applications are shown as rows like every other section. The stock Overview search is left untouched.
+- New defaults: blur on, corner radius 28px, border 1px.
+- Everything from Search Light: popup search box, colors, background and border customization, window effects, multi-monitor support, configurable shortcuts.
 
-![Contributors](https://img.shields.io/github/contributors/icedman/search-light?color=dark-green) ![Forks](https://img.shields.io/github/forks/icedman/search-light?style=social) ![Stargazers](https://img.shields.io/github/stars/icedman/search-light?style=social) ![Issues](https://img.shields.io/github/issues/icedman/search-light) ![License](https://img.shields.io/github/license/icedman/search-light) 
+## Installation
 
-![First Release](https://raw.githubusercontent.com/icedman/search-light/main/screenshots/Screenshot%20from%202022-11-03%2011-53-28.png)
+From a clone of this repository:
 
-
-This is a Gnome Shell extension that takes the apps search widget out of Overview. Like Alfred.
-
-### Notice
-
-* Gnome 48 ready for testing
-* Gnome 47 and prior will now be numer gnome-47 branch
-* Gnome 46 port is ready for testing
-* Gnome 45 port is ready for testing
-* Gnome 44 and prior will be under g44 branch
-
-### Features
-
-* Popup search box
-* Colors, background, borders customization
-* Blurred background
-* Multi-monitor support
-
-## Blurred background
-
-The panel blurs whatever is behind it, live, with no external tools required. Toggle it under Appearance.
-
-### Installation
-
-Manual Installation: 
-- Clone this repo
 ```bash
-$ git clone https://github.com/icedman/search-light
-```
-- Use the `Makefile` to build and install
-```bash 
-$ cd search-light
-$ make
+$ git clone https://github.com/AntonioEstela/search-light-glass
+$ cd search-light-glass
+$ make install
 ```
 
-From Gnome Extensions Repository
+Then log out and back in (on Wayland), and enable "Search Light Glass" in the Extensions app. `make publish` builds an installable zip.
 
-Visit [repository](https://extensions.gnome.org/extension/5489/search-light/)
+## Keybinding
 
-### Keybinding
+Ctrl+Super+Space by default; change it on the preferences page. Super is the Windows logo key.
 
-Ctrl+Cmd+Space (change at the preference page)
-Cmd - your Windows logo, or the command logo on mac. Linux also calls this the 'Super' key.
+## Known limitations
 
-### Credits
+- Tested only on GNOME Shell 50.1. GNOME 48 and 49 are declared in `metadata.json` but are untested.
+- App rows can't be dragged to the dock, because GNOME's dash only accepts its own app icons.
+- Keyboard navigation of the result rows was verified by automated checks, but you should try it by hand.
 
-Blur-My-Shell for background blurring code.
+## Development
+
+- Unit tests: `gjs -m tests/unit/test_theme.js`.
+- Nested GNOME Shell tests: `tests/nested/run.sh <scenario> [out_dir]` runs the working tree in a nested shell with a probe extension and checks the result. `tests/nested/run.sh all` runs every scenario.
+
+## License and credits
+
+Licensed under GPL-3.0, like the original. The original copyright stays; see `LICENSE`.
+
+- [icedman](https://github.com/icedman) for [Search Light](https://github.com/icedman/search-light), the extension this is built on.
+- [Blur my Shell](https://github.com/aunetx/blur-my-shell) for the background blurring approach.

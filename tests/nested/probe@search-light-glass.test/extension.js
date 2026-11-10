@@ -45,6 +45,20 @@ SCENARIOS.hidecycle = async ctx => {
   await ctx.wait(1000);
 };
 
+// window-created must still hide the panel after a hide/show cycle
+// (_remove_events() disconnects every global.display handler on hide).
+SCENARIOS.windowcreated = async ctx => {
+  ctx.ext.show(); await ctx.wait(800);
+  ctx.ext.hide(); await ctx.wait(1000);
+  ctx.ext.show(); await ctx.wait(800);
+  const p = ctx.ext.mainContainer;
+  ctx.check('wc-panel-opaque-before', p.opacity > 0, `op=${p.opacity}`);
+  global.display.emit('window-created', global.display.list_all_windows()[0]);
+  await ctx.wait(300);
+  ctx.check('wc-hidden-after-cycle', p.opacity === 0, `op=${p.opacity} shown=${ctx.ext._visible}`);
+  ctx.ext.hide(); await ctx.wait(1000);
+};
+
 SCENARIOS.identity = async ctx => {
   const ext = Main.extensionManager.lookup(
     'search-light-glass@antonioestela.github.com'
@@ -71,8 +85,10 @@ SCENARIOS.glass = async ctx => {
   ctx.type('settings'); await ctx.wait(1500);
   ctx.check('glass-tracks-panel-after-typing', g && near(g.height - 80, p.height) && p.height > ctx.ext.initial_height);
   await ctx.shot('glass-typed.png');
-  global.display.emit('window-created', global.display.list_all_windows()[0]); await ctx.wait(300);
-  ctx.check('glass-hidden-on-window-created', g && (g.opacity === 0 || !g.visible));
+  const wins = global.display.list_all_windows();
+  global.display.emit('window-created', wins[0]); await ctx.wait(300);
+  const dbg = `wins=${wins.length} anim=${ctx.ext._useAnimations}`;
+  ctx.check('glass-hidden-on-window-created', g && (g.opacity === 0 || !g.visible), `g=${!!g} op=${g?.opacity} vis=${g?.visible} panel=${p.opacity} shown=${ctx.ext._visible} ${dbg}`);
   ctx.ext.hide(); await ctx.wait(1000);
   ctx.check('glass-gone-after-hide', ctx.ext._glass?.actor == null);
 };
@@ -253,6 +269,51 @@ SCENARIOS.apps = async ctx => {
   Main.overview.hide();
 };
 
+// README screenshots (not part of `all`): light/dark, settings query.
+SCENARIOS.shots = async ctx => {
+  for (const scheme of ['dark', 'light']) {
+    ctx.setScheme(scheme); await ctx.wait(2200);
+    for (const [q, tag] of [['settings', 'settings']]) {
+      ctx.ext.show(); await ctx.wait(500); ctx.type(q); await ctx.wait(1800);
+      await ctx.shot(`shot-${scheme}-${tag}.png`);
+      ctx.check(`shot-${scheme}-${tag}`, true);
+      ctx.ext.hide(); await ctx.wait(800);
+    }
+  }
+};
+
+// Runs every scenario in sequence. Each one gets the live extension instance
+// (the leak scenario replaces it, so it runs last), a clean settings state and
+// a fresh show()/hide() cycle.
+SCENARIOS.all = async ctx => {
+  const names = Object.keys(SCENARIOS).filter(n => !['all', 'none', 'leak'].includes(n));
+  const only = GLib.getenv('PROBE_ONLY');
+  if (only) names.splice(0, names.length, ...only.split(','));
+  else names.push('leak');
+  const baseline = {};
+  const settings = () => Main.overview.searchLight._settings;
+  for (const key of ['blur-background']) baseline[key] = settings().get_boolean(key);
+  const checks = ctx.checks;
+  for (const name of names) {
+    ctx.ext = Main.overview.searchLight;
+    ctx.setScheme('light');
+    ctx.ext._settings.set_boolean('blur-background', baseline['blur-background']);
+    ctx.ext._settings.set_int('window-effect', 0);
+    ctx.ext.show(); await ctx.wait(600);
+    ctx.ext.hide(); await ctx.wait(800);
+    ctx.ext = Main.overview.searchLight;
+    const before = checks.length;
+    try {
+      await SCENARIOS[name](ctx);
+    } catch (e) {
+      ctx.check('scenario-error', false, `${e}`);
+    }
+    for (let i = before; i < checks.length; i++) checks[i].name = `${name}/${checks[i].name}`;
+    Main.overview.hide();
+    await ctx.wait(500);
+  }
+};
+
 // ---- end scenarios ----
 
 export default class ProbeExtension extends Extension {
@@ -284,6 +345,7 @@ export default class ProbeExtension extends Extension {
         })
       );
     const ctx = {
+      checks,
       ext: Main.overview.searchLight,
       check(n, cond, detail = '') {
         checks.push({name: n, ok: !!cond, detail: String(detail)});

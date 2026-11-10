@@ -83,7 +83,7 @@ export default class Preferences extends ExtensionPreferences {
       },
       {
         name: 'open-license',
-        link: 'https://github.com/AntonioEstela/search-light-glass/blob/glass/LICENSE',
+        link: 'https://github.com/AntonioEstela/search-light-glass/blob/HEAD/LICENSE',
       },
     ];
 

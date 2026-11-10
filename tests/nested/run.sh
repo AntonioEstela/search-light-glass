@@ -102,7 +102,9 @@ if [ "$PROBE_SCENARIO" = none ]; then
   exit 0
 fi
 
-for _ in $(seq 60); do
+LIMIT=60
+[ "$PROBE_SCENARIO" = all ] && LIMIT=900 # 7.5 minutes
+for _ in $(seq $LIMIT); do
   [ -f "$OUT/report.json" ] && break
   kill -0 "$SH" 2>/dev/null || break
   sleep 0.5

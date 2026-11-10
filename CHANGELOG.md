@@ -1,5 +1,19 @@
 ## ROADMAP
 
+## 1 - Search Light Glass
+
+* fork of Search Light 38 with its own UUID, schema and stylesheet class
+* real backdrop blur (wallpaper and window clones, blur, rounded corners, saturation, tint), on by default; the ImageMagick wallpaper blur is removed
+* rounded outer panel shadow, with a faint outline in light mode
+* automatic light/dark theme from the system color scheme, with live switching; user colors override it
+* new defaults: blur on, radius 28px, border 1px
+* single-column sectioned results with section titles, 28px icons, subtitles and a translucent selection pill; applications shown as rows
+* fix: shell crash when hiding the panel
+* fix: show during hide race
+* fix: application rows not launching
+* fix: window-created handler was lost after the first hide
+* add nested GNOME Shell test harness and unit tests
+
 ## release 38
 
 * fork gnome 48 from 47
