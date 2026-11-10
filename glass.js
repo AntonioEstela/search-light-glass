@@ -52,7 +52,10 @@ vec2 local = pos - vec2(pad) - size * 0.5;
 float d = roundedBox(local, size * 0.5, radius);
 float cov = 1.0 - smoothstep(-0.75, 0.75, d);
 vec4 c = cogl_color_out;
-vec3 rgb = c.a > 0.0 ? c.rgb / c.a : c.rgb;
+// Premultiplied rgb: anywhere the blurred scene is not fully opaque (e.g. a
+// wallpaper clone that is still loading) it fades to black instead of
+// keeping a full-strength color with a hard edge where alpha reaches zero.
+vec3 rgb = c.rgb;
 float g = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
 rgb = clamp(mix(vec3(g), rgb, saturation), 0.0, 1.0);
 rgb = mix(rgb, tint.rgb, tint.a);

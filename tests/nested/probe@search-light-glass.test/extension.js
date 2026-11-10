@@ -101,6 +101,7 @@ SCENARIOS.theme = async ctx => {
   await ctx.shot('theme-dark.png');
   ctx.setScheme('light'); await ctx.wait(800);
   ctx.check('live-theme-switch', ctx.ext.container.has_style_class_name('light'));
+  await ctx.wait(2200);
   await ctx.shot('theme-light.png');
   ctx.ext._settings.set_boolean('blur-background', false); await ctx.wait(500);
   ctx.check('no-glass-when-blur-off', ctx.ext._glass?.actor == null);

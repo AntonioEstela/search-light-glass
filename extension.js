@@ -144,7 +144,12 @@ export default class SearchLightExt extends Extension {
     });
     this._interfaceSettings.connectObject(
       'changed::color-scheme',
-      () => this._updateCss(),
+      () => {
+        this._updateCss();
+        // The wallpaper cross-fades to its other variant; re-clone it once
+        // it has settled.
+        this._loTimer?.runOnce(() => this._glass?.rebuildScene(), 1500);
+      },
       this,
     );
 
