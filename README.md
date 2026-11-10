@@ -45,7 +45,7 @@ This is a Gnome Shell extension that takes the apps search widget out of Overvie
 
 ## Blurred background
 
-Blurred background feature requires **imagemagick** to be installed in the system which will generate the blurred image.
+The panel blurs whatever is behind it, live, with no external tools required. Toggle it under Appearance.
 
 ### Installation
 

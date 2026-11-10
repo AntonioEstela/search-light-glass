@@ -8,7 +8,7 @@ export const PALETTES = {
     text: [1, 1, 1, 1],
   },
   light: {
-    tint: [1, 1, 1, 0.72],
+    tint: [1, 1, 1, 0.82],
     border: [1, 1, 1, 0.60],
     text: [0.114, 0.114, 0.122, 1],
   },

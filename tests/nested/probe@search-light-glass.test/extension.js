@@ -94,6 +94,29 @@ SCENARIOS.leak = async ctx => {
   Main.overview.searchLight.hide(); await ctx.wait(1000);
 };
 
+SCENARIOS.theme = async ctx => {
+  ctx.setScheme('dark'); ctx.ext.show(); await ctx.wait(400); ctx.type('settings'); await ctx.wait(1500);
+  ctx.check('dark-class', !ctx.ext.container.has_style_class_name('light'));
+  ctx.check('blur-default-on', ctx.ext._settings.get_boolean('blur-background') === true);
+  await ctx.shot('theme-dark.png');
+  ctx.setScheme('light'); await ctx.wait(800);
+  ctx.check('live-theme-switch', ctx.ext.container.has_style_class_name('light'));
+  await ctx.shot('theme-light.png');
+  ctx.ext._settings.set_boolean('blur-background', false); await ctx.wait(500);
+  ctx.check('no-glass-when-blur-off', ctx.ext._glass?.actor == null);
+  await ctx.shot('theme-noblur.png');
+  ctx.ext.hide(); await ctx.wait(1000);
+};
+
+SCENARIOS['show-interrupts-hide'] = async ctx => {
+  ctx.ext.show(); await ctx.wait(800);
+  ctx.ext.hide(); await ctx.wait(30);
+  ctx.ext.show(); await ctx.wait(1000);
+  ctx.check('panel-visible', ctx.ext.mainContainer.visible && ctx.ext._visible === true);
+  ctx.check('glass-alive', !!ctx.ext._glass?.actor);
+  ctx.ext.hide(); await ctx.wait(1000);
+};
+
 // ---- end scenarios ----
 
 export default class ProbeExtension extends Extension {

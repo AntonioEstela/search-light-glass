@@ -45,6 +45,10 @@ import {
   gettext as _,
 } from 'resource:///org/gnome/shell/extensions/extension.js';
 
+// Corner radius choices (px); the border-radius setting is an index into this.
+const BORDER_RADII = [0, 16, 18, 20, 22, 24, 28, 32];
+const DEFAULT_RADIUS = 28;
+
 var SearchLight = GObject.registerClass(
   {},
   class SearchLight extends St.Widget {
@@ -91,6 +95,10 @@ export default class SearchLightExt extends Extension {
           this._updateGlassStyle();
           break;
         case 'background-color':
+        case 'border-color':
+        case 'border-thickness':
+        case 'text-color':
+        case 'entry-text-color':
         case 'panel-icon-color':
           this._updateCss();
           break;
@@ -101,6 +109,7 @@ export default class SearchLightExt extends Extension {
           this._animationSpeed = value;
           break;
         case 'border-radius':
+          this._updateCss();
           break;
         case 'shortcut-search':
           this._updateShortcut();
@@ -133,6 +142,11 @@ export default class SearchLightExt extends Extension {
     this._interfaceSettings = new Gio.Settings({
       schema_id: 'org.gnome.desktop.interface',
     });
+    this._interfaceSettings.connectObject(
+      'changed::color-scheme',
+      () => this._updateCss(),
+      this,
+    );
 
     this.mainContainer = new SearchLight();
     this.mainContainer._delegate = this;
@@ -239,12 +253,10 @@ export default class SearchLightExt extends Extension {
     this._settingsKeys.disconnectSettings();
     this._settings = null;
 
+    this._interfaceSettings?.disconnectObject(this);
     this._interfaceSettings = null;
 
-    if (this._glass) {
-      this._glass.detach();
-      this._glass = null;
-    }
+    this._destroyGlass();
 
     if (this.accel) {
       this.accel.disable();
@@ -400,15 +412,15 @@ export default class SearchLightExt extends Extension {
       this._hiTimer.cancel(this._animSeq);
       this._animSeq = null;
     }
+    // Invalidate a hide() animation that is still running.
+    this._visSeq = (this._visSeq || 0) + 1;
+    this.mainContainer.remove_all_transitions();
     this._acquire_ui();
 
     this._updateCss();
     this._layout();
 
-    if (this._glass) {
-      this._glass.detach();
-      this._glass = null;
-    }
+    this._destroyGlass();
     this._updateGlassPresence();
 
     global.compositor.disable_unredirect();
@@ -456,6 +468,7 @@ export default class SearchLightExt extends Extension {
     this._remove_events();
     this._release_ui();
 
+    const seq = (this._visSeq = (this._visSeq || 0) + 1);
     if (this._useAnimations) {
       this.mainContainer.ease({
         opacity: 0,
@@ -466,6 +479,8 @@ export default class SearchLightExt extends Extension {
         duration: this._animationSpeed,
         mode: Clutter.AnimationMode.EASE_OUT,
         onComplete: () => {
+          // show() ran in the meantime: this hide is stale.
+          if (seq !== this._visSeq) return;
           this._visible = false;
           this.mainContainer.hide();
           this._destroyGlass();
@@ -504,11 +519,10 @@ export default class SearchLightExt extends Extension {
   }
 
   _glassRadius() {
-    let rads = [0, 16, 18, 20, 22, 24, 28, 32];
-    return rads[Math.floor(this.border_radius)] || 28;
+    return BORDER_RADII[Math.floor(this.border_radius)] ?? DEFAULT_RADIUS;
   }
 
-  _glassTint() {
+  _palette() {
     let overrides = {};
     for (let key of [
       'background_color',
@@ -523,14 +537,14 @@ export default class SearchLightExt extends Extension {
     let scheme = schemeFromColorScheme(
       this._interfaceSettings?.get_string('color-scheme'),
     );
-    return resolvePalette({ scheme, overrides }).tint;
+    return resolvePalette({ scheme, overrides });
   }
 
   _updateGlassStyle() {
     if (!this._glass) return;
     this._glass.setStyle({
       radius: this._glassRadius(),
-      tint: this._glassTint(),
+      tint: this._palette().tint,
       blurRadius: this.blur_sigma,
       brightness: this.blur_brightness,
     });
@@ -712,6 +726,7 @@ export default class SearchLightExt extends Extension {
     this._search = Main.overview.searchController;
 
     this._search.hide();
+    this._search.add_style_class_name('slc-results');
     this._searchResults = this._search._searchResults;
     this._searchParent = this._search.get_parent();
 
@@ -768,6 +783,7 @@ export default class SearchLightExt extends Extension {
     if (this._search) {
       this._removeProviders();
       this._search.hide();
+      this._search.remove_style_class_name('slc-results');
       if (this._search.get_parent()) {
         this._search.get_parent().remove_child(this._search);
       }
@@ -800,15 +816,11 @@ export default class SearchLightExt extends Extension {
   }
 
   _updateCss(disable) {
-    let bg = this.background_color || [0, 0, 0, 0.5];
-    if (this.text_color && this.text_color[3] > 0) {
-      this.container.remove_style_class_name('light');
+    const palette = this._palette();
+    if (palette.isLight) {
+      this.container.add_style_class_name('light');
     } else {
-      if (0.3 * bg[0] + 0.59 * bg[1] + 0.11 * bg[2] < 0.5) {
-        this.container.remove_style_class_name('light');
-      } else {
-        this.container.add_style_class_name('light');
-      }
+      this.container.remove_style_class_name('light');
     }
 
     this._background.visible = true;
@@ -818,16 +830,14 @@ export default class SearchLightExt extends Extension {
     {
       let ss = [];
 
+      // With blur on, the glass layer paints the tint.
       if (!this.blur_background) {
-        let clr = this._style.rgba(this.background_color);
+        let clr = this._style.rgba(palette.tint);
         ss.push(`\n  background: rgba(${clr});`);
       }
 
-      if (
-        this.border_thickness
-        // && !this.blur_background
-      ) {
-        let clr = this._style.rgba(this.border_color);
+      if (this.border_thickness) {
+        let clr = this._style.rgba(palette.border);
         ss.push(`\n  border: ${this.border_thickness}px solid rgba(${clr});`);
       }
 
@@ -840,8 +850,7 @@ export default class SearchLightExt extends Extension {
 
     {
       if (this.border_radius !== null) {
-        let rads = [0, 16, 18, 20, 22, 24, 28, 32];
-        let r = rads[Math.floor(this.border_radius)];
+        let r = this._glassRadius();
         if (r) {
           let st = `StBoxLayout.search-section-content { border-radius: ${r}px !important; }`;
           st = '#searchLightBlurredBackgroundImage,\n' + st; // has no effect
@@ -866,12 +875,12 @@ export default class SearchLightExt extends Extension {
       }
     }
 
-    let clr = this._style.rgba(this.text_color);
-    if ((this.text_color || [1, 1, 1, 1])[3] > 0) {
-      styles.push(`#searchLightBox * { color: rgba(${clr}) !important }`);
-    } else {
-      styles.push('/* empty */');
-    }
+    styles.push(
+      `#searchLightBox * { color: rgba(${this._style.rgba(palette.text)}) !important }`,
+    );
+    styles.push(
+      `#searchLightBox > StEntry, #searchLightBox > StEntry:focus { color: rgba(${this._style.rgba(palette.entryText)}) !important }`,
+    );
 
     // icon color
     {
