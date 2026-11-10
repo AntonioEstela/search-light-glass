@@ -77,6 +77,23 @@ SCENARIOS.glass = async ctx => {
   ctx.check('glass-gone-after-hide', ctx.ext._glass?.actor == null);
 };
 
+SCENARIOS.effects = async ctx => {
+  ctx.ext._settings.set_boolean('blur-background', true);
+  ctx.ext._settings.set_value('window-effect-color', new GLib.Variant('(dddd)', [1, 0.2, 0.2, 0.5]));
+  ctx.ext.show(); await ctx.wait(800);
+  for (const idx of [1, 2, 3]) {
+    let err = null;
+    try { ctx.ext._settings.set_int('window-effect', idx); } catch (e) { err = e; }
+    await ctx.wait(300);
+    ctx.check(`window-effect-${idx}`, !err && !!ctx.ext.windowEffect, `${err}`);
+    await ctx.shot(`effect-${idx}.png`);
+  }
+  ctx.ext._settings.set_int('window-effect', 0);
+  await ctx.wait(300);
+  ctx.check('window-effect-0', !ctx.ext.windowEffect);
+  ctx.ext.hide(); await ctx.wait(500);
+};
+
 SCENARIOS.leak = async ctx => {
   const uuid = 'search-light-glass@antonioestela.github.com';
   const count = () => Main.layoutManager.uiGroup.get_children().length;
