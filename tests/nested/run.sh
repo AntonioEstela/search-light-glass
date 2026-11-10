@@ -32,8 +32,9 @@ if [ "${NESTED_INNER:-}" != 1 ]; then
     cp -r ui preferences effects apps schemas "$EXT"/
   )
   rm -f "$EXT"/_*.js "$EXT"/utils.js "$EXT"/drawing.js "$EXT"/chamfer.js "$EXT"/imports_*
-  rm -f "$EXT"/schemas/gschemas.compiled
-  glib-compile-schemas --strict "$EXT/schemas" || exit 2
+  # Ship the tracked compiled schema as-is, but fail fast if it is stale
+  # (recompiling here used to hide that).
+  gjs -m "$ROOT/tests/unit/test_schema_compiled.js" || exit 2
   cp "$ROOT"/tests/nested/probe@search-light-glass.test/* "$TMP/data/gnome-shell/extensions/$PROBE_UUID/"
 
   export XDG_DATA_HOME="$TMP/data" GSETTINGS_BACKEND=memory

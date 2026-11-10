@@ -5,11 +5,12 @@ all: build install lint
 build:
 	glib-compile-schemas --strict --targetdir=schemas/ schemas
 
-install:
+install: publish
+	rm -rf ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com
 	mkdir -p ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
-	cp -R ./* ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
+	cp -R ./build/* ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
 
-publish:
+publish: build
 	rm -rf build
 	mkdir build
 	cp LICENSE ./build
@@ -32,7 +33,7 @@ publish:
 	cd build ; \
 	zip -qr ../search-light-glass@antonioestela.github.com.zip .
 
-install-zip: publish
+install-zip: build publish
 	echo "installing zip..."
 	rm -rf ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com
 	mkdir -p ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
