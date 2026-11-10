@@ -144,6 +144,40 @@ SCENARIOS.sections = async ctx => {
   Main.overview.hide();
 };
 
+SCENARIOS.appsreopen = async ctx => {
+  const appsProv = () => ctx.ext._searchResults._providers.find(p => !p.appInfo);
+  ctx.ext.show(); await ctx.wait(400); ctx.type('text'); await ctx.wait(1500);
+  const view = ctx.ext._searchResults;
+  // Closing normally clears the entry; to reproduce a reopen with the terms
+  // still in place, cycle the restyler directly (what hide()/show() do).
+  const res = ctx.ext._restyler;
+  const old = appsProv().display;
+  res.restore(); res.apply(); await ctx.wait(1000);
+  let d = appsProv()?.display;
+  ctx.check('reapply-new-display', d !== old && d?.constructor?.name === 'AppRowResults');
+  ctx.check('reapply-apps-have-rows', d?._rows.get_n_children() > 0, d?._rows.get_n_children());
+  let def = view._defaultResult;
+  ctx.check('reapply-default-is-live-row', !!def && def.get_parent() === d?._rows && !!def.get_stage());
+  await ctx.shot('apps-reapply.png');
+  // real hide/show: text cleared, retyping must work with a fresh display
+  ctx.ext.hide(); await ctx.wait(1000);
+  ctx.ext.show(); await ctx.wait(400); ctx.type('text'); await ctx.wait(1500);
+  d = appsProv()?.display;
+  ctx.check('reopen-apps-have-rows', d?.constructor?.name === 'AppRowResults' && d._rows.get_n_children() > 0);
+  def = view._defaultResult;
+  ctx.check('reopen-default-is-live-row', !!def && def.get_parent() === d?._rows && !!def.get_stage());
+  await ctx.shot('apps-reopen.png');
+  // a hide within ~150ms of typing must not touch destroyed displays
+  ctx.type('tex'); await ctx.wait(30); ctx.ext.hide(); await ctx.wait(1000);
+  ctx.check('quick-hide-survives', true);
+  ctx.ext.show(); await ctx.wait(400); ctx.type('text'); await ctx.wait(1500);
+  ctx.check('activate-default-hides', (() => { view.activateDefault(); return true; })());
+  await ctx.wait(1500);
+  ctx.check('panel-hidden-after-activate', ctx.ext._visible === false || ctx.ext.mainContainer.opacity === 0,
+    `visible=${ctx.ext._visible} opacity=${ctx.ext.mainContainer.opacity}`);
+  if (ctx.ext._visible) { ctx.ext.hide(); await ctx.wait(800); }
+};
+
 SCENARIOS.apps = async ctx => {
   const appsProv = () => ctx.ext._searchResults._providers.find(p => !p.appInfo);
   ctx.ext.show(); await ctx.wait(400);

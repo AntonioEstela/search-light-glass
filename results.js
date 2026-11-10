@@ -7,12 +7,37 @@ import {
   GridSearchResults,
   ListSearchResult,
 } from 'resource:///org/gnome/shell/ui/search.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const SECTION_CLASS = 'slg-section';
 const ROW_ICON_SIZE = 28;
 // GNOME's MAX_LIST_SEARCH_RESULTS_ROWS.
 const MAX_APP_ROWS = 5;
+
+// A row of the apps provider. The provider has no activateResult(): the
+// stock grid activates through AppIcon, so do the same here (launch or raise
+// the app, ctrl for a new window; system actions such as Power Off too).
+const AppRow = GObject.registerClass(
+class AppRow extends ListSearchResult {
+  activate() {
+    const id = this.metaInfo.id;
+    const app = id.endsWith('.desktop')
+      ? Shell.AppSystem.get_default().lookup_app(id)
+      : null;
+    if (app) {
+      const event = Clutter.get_current_event();
+      const ctrl = ((event?.get_state() ?? 0) & Clutter.ModifierType.CONTROL_MASK) !== 0;
+      if (ctrl && app.can_open_new_window() && app.state === Shell.AppState.RUNNING)
+        app.open_new_window(-1);
+      else app.activate();
+    } else {
+      SystemActions.getDefault().activateAction(id);
+    }
+    Main.overview.hide();
+  }
+});
 
 // The apps provider, shown as rows under a section title instead of
 // GNOME's icon grid. Reuses GridSearchResults' provider plumbing, so focus
@@ -43,11 +68,21 @@ class AppRowResults extends GridSearchResults {
     this.add_style_class_name(SECTION_CLASS);
   }
 
+  _onDestroy() {
+    // Stop an in-flight metas request and make late updateSearch() calls
+    // no-ops: the rows are about to be gone.
+    this._dead = true;
+    this._cancellable.cancel();
+    super._onDestroy();
+  }
+
   // The grid re-runs the search whenever its width changes to refit its
   // columns; the row count is fixed, so skip that and use the base logic.
   async updateSearch(...args) {
+    if (this._dead) return;
     const base = Object.getPrototypeOf(GridSearchResults).prototype;
-    await base.updateSearch.apply(this, args);
+    if (base?.updateSearch) await base.updateSearch.apply(this, args);
+    else await super.updateSearch(...args);
   }
 
   _getMaxDisplayedResults() {
@@ -57,7 +92,7 @@ class AppRowResults extends GridSearchResults {
 
   _createResultDisplay(meta) {
     const app = Shell.AppSystem.get_default().lookup_app(meta.id);
-    return new ListSearchResult(
+    return new AppRow(
       this.provider,
       {...meta, description: app?.get_description() ?? ''},
       this._resultsView
@@ -65,15 +100,15 @@ class AppRowResults extends GridSearchResults {
   }
 
   _addItem(display) {
-    this._rows.add_child(display);
+    if (!this._dead) this._rows.add_child(display);
   }
 
   _clearResultDisplay() {
-    this._rows.remove_all_children();
+    if (!this._dead) this._rows.remove_all_children();
   }
 
   getFirstResult() {
-    return this._rows.get_n_children() > 0
+    return this._dead ? null : this._rows.get_n_children() > 0
       ? this._rows.get_child_at_index(0)
       : null;
   }
@@ -159,6 +194,7 @@ export class ResultsRestyler {
     rows.hide();
     view._content.add_child(rows);
     if (index >= 0) view._content.set_child_at_index(rows, index);
+    const gridWasVisible = grid.visible;
     grid.hide();
 
     const origAddItem = rows._addItem;
@@ -168,8 +204,26 @@ export class ResultsRestyler {
     };
 
     const destroyId = rows.connect('destroy', () => this._appRows.delete(grid));
-    this._appRows.set(grid, {rows, destroyId, provider});
+    this._appRows.set(grid, {rows, destroyId, provider, gridWasVisible});
     provider.display = rows;
+    this._replaySearch(provider, rows);
+  }
+
+  // The view keeps its terms and results across Search Light being closed
+  // and reopened, so a fresh display is filled from them instead of waiting
+  // for a new search.
+  _replaySearch(provider, display) {
+    const view = this._view;
+    const results = view._results?.[provider.id];
+    if (!results || !(view._terms?.length > 0)) return;
+    display
+      .updateSearch(results, view._terms)
+      .then(() => {
+        if (display._dead) return;
+        view._maybeSetInitialSelection();
+        view._updateSearchProgress();
+      })
+      .catch(e => console.error(e));
   }
 
   _restoreApps(grid) {
@@ -177,11 +231,14 @@ export class ResultsRestyler {
     if (!st) return;
     this._appRows.delete(grid);
     st.rows.disconnect(st.destroyId);
-    st.provider.display = grid;
-    grid.show();
+    const view = this._view;
+    const stale = view._defaultResult && st.rows.contains(view._defaultResult);
     // Rows are destroyed with their display; forget them first.
     for (const row of st.rows._rows.get_children()) this._restoreRow(row);
     st.rows.destroy();
+    if (stale) view._defaultResult = null;
+    st.provider.display = grid;
+    grid.visible = st.gridWasVisible;
   }
 
   _style(display) {
