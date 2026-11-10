@@ -1,0 +1,7 @@
+{
+  "name": "Search Light Glass test probe",
+  "description": "Test-only extension that drives scenarios inside a nested GNOME Shell.",
+  "uuid": "probe@search-light-glass.test",
+  "shell-version": ["48", "49", "50"],
+  "version": 1
+}

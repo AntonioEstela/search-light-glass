@@ -1,6 +1,6 @@
 all: build install lint
 
-.PHONY: build install
+.PHONY: build install test-nested test-unit
 
 build:
 	glib-compile-schemas --strict --targetdir=schemas/ schemas
@@ -80,6 +80,12 @@ test-shell: install
 	 	MUTTER_DEBUG_DUMMY_MONITOR_SCALES=1.5 \
 		dbus-run-session -- gnome-shell --devkit --wayland
 	rm /run/user/1000/gnome-shell-disable-extensions
+
+test-nested:
+	tests/nested/run.sh smoke
+
+test-unit:
+	@for t in tests/unit/*.mjs; do [ -e "$$t" ] || continue; gjs -m "$$t" || exit 1; done
 
 lint:
 	eslint ./
