@@ -125,11 +125,21 @@ SCENARIOS.sections = async ctx => {
   ctx.check('has-list-sections', lists().length > 0);
   ctx.check('sections-vertical', lists().every(d =>
     d._container.orientation === Clutter.Orientation.VERTICAL && d.has_style_class_name('slg-section')));
+  const row = lists()[0]?._content.get_child_at_index(0);
+  const rowIcon = row?.get_child().get_first_child().get_first_child();
+  ctx.check('row-icon-size', rowIcon && rowIcon.icon_size >= 26, rowIcon?.icon_size);
+  ctx.check('row-subtitle-stacked', row && row._descriptionLabel &&
+    row._descriptionLabel.get_parent() === row.label_actor.get_parent() &&
+    row.label_actor.get_parent().orientation === Clutter.Orientation.VERTICAL);
   await ctx.shot('sections.png');
   ctx.ext.hide(); await ctx.wait(800);
   Main.overview.show(); await ctx.wait(1200); ctx.type('settings'); await ctx.wait(1500);
   ctx.check('overview-restored', lists().every(d =>
     d._container.orientation === Clutter.Orientation.HORIZONTAL && !d.has_style_class_name('slg-section')));
+  const r2 = lists()[0]?._content.get_child_at_index(0);
+  ctx.check('overview-row-restored', r2 && r2.label_actor.get_parent() === r2.get_child().get_first_child() &&
+    r2._descriptionLabel.get_parent() === r2.get_child() &&
+    r2.get_child().get_first_child().get_first_child().icon_size === 24);
   await ctx.shot('overview.png');
   Main.overview.hide();
 };

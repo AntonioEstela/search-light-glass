@@ -122,7 +122,7 @@
 #searchLightBox .slg-section .list-search-result-description {
   color: rgba(255, 255, 255, 0.55) !important;
   font-size: 11px;
-  padding-left: 8px;
+  padding-left: 0;
 }
 
 #searchLightBox .slg-section .list-search-result:selected,
