@@ -147,6 +147,47 @@ SCENARIOS.leak = async ctx => {
   Main.overview.searchLight.hide(); await ctx.wait(1000);
 };
 
+// Disabling the extension while the panel is open (text typed) and while a
+// hide animation is running must restore the shell's own widgets.
+SCENARIOS['disable-open'] = async ctx => {
+  const uuid = 'search-light-glass@antonioestela.github.com';
+  const entry = Main.overview.searchEntry;
+  const controller = Main.overview.searchController;
+  const entryParent = entry.get_parent();
+  const controllerParent = controller.get_parent();
+  const origToggle = Main.overview.constructor.prototype.toggle;
+  const origHide = Main.overview.constructor.prototype.hide;
+  const count = () => Main.layoutManager.uiGroup.get_children().length;
+  const before = count();
+  ctx.ext._settings.set_boolean('blur-background', true);
+  await ctx.wait(300);
+  for (const phase of ['open', 'hiding']) {
+    ctx.ext = Main.overview.searchLight;
+    ctx.ext._useAnimations = true;
+    ctx.ext.show(); await ctx.wait(600); ctx.type('settings'); await ctx.wait(1000);
+    ctx.check(`${phase}: panel-open`, ctx.ext._visible === true);
+    if (phase === 'hiding') { ctx.ext.hide(); await ctx.wait(20); }
+    Main.extensionManager.disableExtension(uuid); await ctx.wait(800);
+    ctx.check(`${phase}: entry-back-in-stock-parent`, entry.get_parent() === entryParent, `${entry.get_parent()}`);
+    ctx.check(`${phase}: controller-back-in-stock-parent`, controller.get_parent() === controllerParent);
+    ctx.check(`${phase}: searchLight-undefined`, Main.overview.searchLight === undefined);
+    ctx.check(`${phase}: overview-methods-restored`,
+      Main.overview.toggle === origToggle && Main.overview.hide === origHide);
+    ctx.check(`${phase}: panel-actors-removed`, count() === before - 1, `${before} -> ${count()}`);
+    let threw = null;
+    try { Main.overview.hide(); } catch (e) { threw = e; }
+    ctx.check(`${phase}: overview-hide-ok`, !threw, `${threw}`);
+    Main.extensionManager.enableExtension(uuid); await ctx.wait(1500);
+    const e2 = Main.overview.searchLight;
+    ctx.check(`${phase}: reenabled`, !!e2);
+    ctx.check(`${phase}: no-leak-after-reenable`, count() === before, `${before} -> ${count()}`);
+    e2.show(); await ctx.wait(800);
+    ctx.check(`${phase}: show-after-reenable`, e2._visible === true && e2.mainContainer.visible);
+    e2.hide(); await ctx.wait(1000);
+    ctx.check(`${phase}: hide-after-reenable`, e2._visible === false);
+  }
+};
+
 SCENARIOS.theme = async ctx => {
   ctx.setScheme('dark'); ctx.ext.show(); await ctx.wait(400); ctx.type('settings'); await ctx.wait(1500);
   ctx.check('dark-class', !ctx.ext.container.has_style_class_name('light'));
@@ -321,10 +362,10 @@ SCENARIOS.shots = async ctx => {
 // (the leak scenario replaces it, so it runs last), a clean settings state and
 // a fresh show()/hide() cycle.
 SCENARIOS.all = async ctx => {
-  const names = Object.keys(SCENARIOS).filter(n => !['all', 'none', 'leak', 'shots'].includes(n));
+  const names = Object.keys(SCENARIOS).filter(n => !['all', 'none', 'leak', 'shots', 'disable-open'].includes(n));
   const only = GLib.getenv('PROBE_ONLY');
   if (only) names.splice(0, names.length, ...only.split(','));
-  else names.push('leak');
+  else names.push('disable-open', 'leak');
   const baseline = {};
   const settings = () => Main.overview.searchLight._settings;
   for (const key of ['blur-background']) baseline[key] = settings().get_boolean(key);

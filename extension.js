@@ -230,10 +230,29 @@ export default class SearchLightExt extends Extension {
   }
 
   disable() {
+    // Stop timers first so no deferred callback runs against torn-down state.
     this._hiTimer?.shutdown();
     this._loTimer?.shutdown();
     this._hiTimer = null;
     this._loTimer = null;
+    this._animSeq = null;
+
+    // Undo an open (or still hiding) panel without animating. Invalidate any
+    // pending hide animation so its onComplete cannot touch destroyed actors.
+    this._visSeq = (this._visSeq || 0) + 1;
+    this.mainContainer.remove_all_transitions();
+    // Same order as hide(): events first, then hand the shell widgets back.
+    this._remove_events();
+    this._release_ui();
+    if (this._visible) {
+      this._visible = false;
+      global.compositor.enable_unredirect();
+    }
+
+    Main.overview.disconnectObject(this);
+    Shell.AppSystem.get_default().disconnectObject(this);
+    delete Main.overview.searchLight;
+    delete Main.overview.graphene;
 
     if (this._indicator) {
       this._indicator.disconnectObject(this);
@@ -269,14 +288,11 @@ export default class SearchLightExt extends Extension {
     this._removeProviders();
     this._providers = null;
 
-    if (this._background) {
-      if (this._background.get_parent()) {
-        this._background.get_parent().remove_child(this._background);
-      }
-      this._background = null;
-    }
+    this._background = null;
+    this.container = null;
 
     Main.layoutManager.removeChrome(this.mainContainer);
+    this.mainContainer.destroy();
     this.mainContainer = null;
   }
 
@@ -465,6 +481,12 @@ export default class SearchLightExt extends Extension {
     // _release_ui() is still reparenting actors.
     this._remove_events();
     this._release_ui();
+
+    // The post-show layout/animation timer must not run on a hidden panel.
+    if (this._animSeq) {
+      this._hiTimer?.cancel(this._animSeq);
+      this._animSeq = null;
+    }
 
     const seq = (this._visSeq = (this._visSeq || 0) + 1);
     if (this._useAnimations) {
@@ -979,8 +1001,6 @@ export default class SearchLightExt extends Extension {
   _remove_events() {
     global.display.disconnectObject(this);
     global.stage.disconnectObject(this);
-    Main.overview.disconnectObject(this);
-    Shell.AppSystem.get_default().disconnectObject(this);
   }
 
   _onOverviewShowing() {
