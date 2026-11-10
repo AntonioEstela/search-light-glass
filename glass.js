@@ -87,10 +87,12 @@ export class GlassLayer {
   constructor() {
     this._panel = null;
     this._actor = null;
+    this._shadow = null;
     this._scene = null;
     this._glass = null;
     this._blur = null;
     this._style = {
+      isLight: false,
       radius: 28,
       tint: [0.11, 0.13, 0.2, 0.55],
       blurRadius: 30,
@@ -105,6 +107,17 @@ export class GlassLayer {
   attach(panel) {
     if (this._actor) this.detach();
     this._panel = panel;
+
+    // The drop shadow lives on its own actor below the glass: the panel is
+    // offscreen-redirected and the glass layer is clipped, so neither can
+    // paint a shadow outside its allocation. This actor has the panel's size
+    // and no clip; St paints the box-shadow around it.
+    this._shadow = new St.Widget({ name: 'searchLightShadow', reactive: false });
+    this._shadow.set_pivot_point(0, 0);
+    Main.layoutManager.addChrome(this._shadow, {
+      affectsStruts: false,
+      trackFullscreen: false,
+    });
 
     this._actor = new St.Widget({ name: 'searchLightGlass', reactive: false });
     this._actor.clip_to_allocation = true;
@@ -127,15 +140,19 @@ export class GlassLayer {
       trackFullscreen: false,
     });
     Main.layoutManager.uiGroup.set_child_below_sibling(this._actor, panel);
+    Main.layoutManager.uiGroup.set_child_below_sibling(this._shadow, this._actor);
 
     panel.connectObject(...PANEL_SIGNALS.flatMap(s => [s, () => this.sync()]), this);
 
     this.sync();
   }
 
-  setStyle({ radius, tint, blurRadius, brightness }) {
-    this._style = { radius, tint, blurRadius, brightness };
+  setStyle({ radius, tint, blurRadius, brightness, isLight = false }) {
+    this._style = { isLight, radius, tint, blurRadius, brightness };
     if (!this._actor) return;
+    this._shadow.style = this._style.isLight
+      ? `border-radius: ${radius}px; box-shadow: 0 8px 28px 0 rgba(0, 0, 0, 0.32);`
+      : `border-radius: ${radius}px; box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.45);`;
     this._blur.radius = blurRadius;
     this._blur.brightness = brightness;
     this._updateUniforms();
@@ -181,6 +198,16 @@ export class GlassLayer {
     actor.opacity = panel.opacity;
     actor.visible = panel.visible;
 
+    const shadow = this._shadow;
+    shadow.set_position(
+      panel.x + panel.translation_x,
+      panel.y + panel.translation_y,
+    );
+    shadow.set_size(panel.width, panel.height);
+    shadow.set_scale(sx, sy);
+    shadow.opacity = panel.opacity;
+    shadow.visible = panel.visible;
+
     this._scene.set_position(-actor.x, -actor.y);
     this._updateUniforms();
   }
@@ -206,6 +233,11 @@ export class GlassLayer {
       this._actor.destroy();
     }
     this._actor = null;
+    if (this._shadow) {
+      Main.layoutManager.removeChrome(this._shadow);
+      this._shadow.destroy();
+    }
+    this._shadow = null;
     this._scene = null;
     this._glass = null;
     this._blur = null;

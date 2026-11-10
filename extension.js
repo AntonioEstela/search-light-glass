@@ -549,6 +549,7 @@ export default class SearchLightExt extends Extension {
   _updateGlassStyle() {
     if (!this._glass) return;
     this._glass.setStyle({
+      isLight: this._palette().isLight,
       radius: this._glassRadius(),
       tint: this._palette().tint,
       blurRadius: this.blur_sigma,

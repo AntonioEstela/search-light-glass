@@ -9,7 +9,7 @@ export const PALETTES = {
   },
   light: {
     tint: [1, 1, 1, 0.82],
-    border: [1, 1, 1, 0.60],
+    border: [0, 0, 0, 0.15],
     text: [0.114, 0.114, 0.122, 1],
   },
 };

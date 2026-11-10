@@ -94,6 +94,16 @@ SCENARIOS.effects = async ctx => {
   ctx.ext.hide(); await ctx.wait(500);
 };
 
+SCENARIOS.edge = async ctx => {
+  for (const scheme of ['light', 'dark']) {
+    ctx.setScheme(scheme); await ctx.wait(2200);
+    ctx.ext.show(); await ctx.wait(400); ctx.type('settings'); await ctx.wait(1500);
+    await ctx.shot(`edge-${scheme}.png`);
+    ctx.ext.hide(); await ctx.wait(500);
+  }
+  ctx.check('edge-done', true);
+};
+
 SCENARIOS.leak = async ctx => {
   const uuid = 'search-light-glass@antonioestela.github.com';
   const count = () => Main.layoutManager.uiGroup.get_children().length;
