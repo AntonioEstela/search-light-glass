@@ -144,6 +144,43 @@ SCENARIOS.sections = async ctx => {
   Main.overview.hide();
 };
 
+SCENARIOS.apps = async ctx => {
+  const appsProv = () => ctx.ext._searchResults._providers.find(p => !p.appInfo);
+  ctx.ext.show(); await ctx.wait(400);
+  const view = ctx.ext._searchResults; ctx.type('text'); await ctx.wait(1500);
+  const d = appsProv()?.display;
+  ctx.check('apps-are-rows', d?.constructor?.name === 'AppRowResults' && d._rows.get_n_children() > 0);
+  ctx.check('apps-row-has-title', d && d._rows.get_child_at_index(0)?.has_style_class_name('list-search-result'));
+  ctx.check('apps-first-result', !!view._defaultResult);
+  const row = d?._rows.get_child_at_index(0);
+  const icon = row?.get_child().get_first_child().get_first_child();
+  ctx.check('apps-row-icon-28', icon && icon.icon_size === 28, icon?.icon_size);
+  ctx.check('apps-row-description', row && row._descriptionLabel && row._descriptionLabel.text !== '');
+  ctx.check('apps-in-view-order', view._content.get_children().indexOf(d) === view._providers.indexOf(appsProv()));
+  ctx.check('apps-default-is-app-row', d && view._defaultResult?.get_parent() === d._rows);
+  await ctx.shot('apps.png');
+  // keyboard: Down from the default result, then onward from the focused actor, must reach list rows
+  // (the header buttons of other sections are focusable too, so just walk).
+  const seen = [];
+  for (let i = 0; i < 8; i++) {
+    if (i === 0) view.navigateFocus(St.DirectionType.DOWN);
+    else view.navigate_focus(global.stage.key_focus, St.DirectionType.DOWN, false);
+    await ctx.wait(150);
+    const f = global.stage.key_focus;
+    seen.push(f?.has_style_class_name?.('list-search-result') ? 'row' : (f?.constructor?.name ?? 'none'));
+  }
+  ctx.check('nav-down-reaches-rows', seen.includes('row'), seen.join(','));
+  view.navigateFocus(St.DirectionType.UP); await ctx.wait(150);
+  ctx.check('nav-up-moves-focus', !!global.stage.key_focus && global.stage.key_focus !== ctx.ext._entry, global.stage.key_focus?.constructor?.name);
+  ctx.check('drag-check-safe', (() => { try { ctx.ext._isDraggingIcon(); return true; } catch { return false; } })());
+  ctx.ext.hide(); await ctx.wait(800);
+  Main.overview.show(); await ctx.wait(1200); ctx.type('text'); await ctx.wait(1500);
+  ctx.check('overview-apps-grid', appsProv()?.display?.constructor?.name === 'GridSearchResults');
+  ctx.check('overview-grid-visible', appsProv()?.display?.visible);
+  await ctx.shot('apps-overview.png');
+  Main.overview.hide();
+};
+
 // ---- end scenarios ----
 
 export default class ProbeExtension extends Extension {

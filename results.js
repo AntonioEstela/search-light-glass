@@ -1,8 +1,83 @@
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
+
+import {
+  GridSearchResults,
+  ListSearchResult,
+} from 'resource:///org/gnome/shell/ui/search.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const SECTION_CLASS = 'slg-section';
 const ROW_ICON_SIZE = 28;
+// GNOME's MAX_LIST_SEARCH_RESULTS_ROWS.
+const MAX_APP_ROWS = 5;
+
+// The apps provider, shown as rows under a section title instead of
+// GNOME's icon grid. Reuses GridSearchResults' provider plumbing, so focus
+// navigation, the default result and activation behave as stock.
+const AppRowResults = GObject.registerClass(
+class AppRowResults extends GridSearchResults {
+  _init(provider, resultsView) {
+    super._init(provider, resultsView);
+
+    this._rows = new St.BoxLayout({
+      style_class: 'list-search-results',
+      orientation: Clutter.Orientation.VERTICAL,
+      x_expand: true,
+    });
+    const title = new St.Label({
+      text: _('Applications'),
+      style_class: 'slg-section-title',
+      x_align: Clutter.ActorAlign.START,
+    });
+    const section = new St.BoxLayout({
+      style_class: 'search-section-content',
+      orientation: Clutter.Orientation.VERTICAL,
+      x_expand: true,
+    });
+    section.add_child(title);
+    section.add_child(this._rows);
+    this._resultDisplayBin.child = section;
+    this.add_style_class_name(SECTION_CLASS);
+  }
+
+  // The grid re-runs the search whenever its width changes to refit its
+  // columns; the row count is fixed, so skip that and use the base logic.
+  async updateSearch(...args) {
+    const base = Object.getPrototypeOf(GridSearchResults).prototype;
+    await base.updateSearch.apply(this, args);
+  }
+
+  _getMaxDisplayedResults() {
+    const max = this.provider.maxResults ?? -1;
+    return max < 0 ? MAX_APP_ROWS : Math.min(max, MAX_APP_ROWS);
+  }
+
+  _createResultDisplay(meta) {
+    const app = Shell.AppSystem.get_default().lookup_app(meta.id);
+    return new ListSearchResult(
+      this.provider,
+      {...meta, description: app?.get_description() ?? ''},
+      this._resultsView
+    );
+  }
+
+  _addItem(display) {
+    this._rows.add_child(display);
+  }
+
+  _clearResultDisplay() {
+    this._rows.remove_all_children();
+  }
+
+  getFirstResult() {
+    return this._rows.get_n_children() > 0
+      ? this._rows.get_child_at_index(0)
+      : null;
+  }
+});
 
 // Restyles the list-style search sections of GNOME's search results view
 // into a single-column list with a title per section, and puts back the
@@ -16,6 +91,8 @@ export class ResultsRestyler {
     this._rows = new Map();
     this._hadOwnEnsure = false;
     this._origEnsure = null;
+    // original grid display -> AppRowResults standing in for it
+    this._appRows = new Map();
   }
 
   apply() {
@@ -31,9 +108,13 @@ export class ResultsRestyler {
     view._ensureProviderDisplay = provider => {
       orig.call(view, provider);
       this._style(provider.display);
+      this._swapAppsForRows(provider);
     };
 
-    for (const provider of view._providers ?? []) this._style(provider.display);
+    for (const provider of view._providers ?? []) {
+      this._style(provider.display);
+      this._swapAppsForRows(provider);
+    }
   }
 
   restore() {
@@ -44,6 +125,7 @@ export class ResultsRestyler {
     else delete view._ensureProviderDisplay;
     this._origEnsure = null;
 
+    for (const grid of [...this._appRows.keys()]) this._restoreApps(grid);
     for (const row of [...this._rows.keys()]) this._restoreRow(row);
 
     for (const [display, saved] of this._saved) {
@@ -61,6 +143,45 @@ export class ResultsRestyler {
       display.remove_style_class_name(SECTION_CLASS);
     }
     this._saved.clear();
+  }
+
+  // Replaces the apps provider's icon grid with an AppRowResults placed at
+  // the same position in the view.
+  _swapAppsForRows(provider) {
+    const grid = provider.display;
+    const view = this._view;
+    if (!grid || provider.appInfo || grid instanceof AppRowResults) return;
+    if (!(grid instanceof GridSearchResults) || this._appRows.has(grid)) return;
+
+    const rows = new AppRowResults(provider, view);
+    const index = view._content.get_children().indexOf(grid);
+    rows.connect('notify::focus-child', view._focusChildChanged.bind(view));
+    rows.hide();
+    view._content.add_child(rows);
+    if (index >= 0) view._content.set_child_at_index(rows, index);
+    grid.hide();
+
+    const origAddItem = rows._addItem;
+    rows._addItem = row => {
+      origAddItem.call(rows, row);
+      this._styleRow(row);
+    };
+
+    const destroyId = rows.connect('destroy', () => this._appRows.delete(grid));
+    this._appRows.set(grid, {rows, destroyId, provider});
+    provider.display = rows;
+  }
+
+  _restoreApps(grid) {
+    const st = this._appRows.get(grid);
+    if (!st) return;
+    this._appRows.delete(grid);
+    st.rows.disconnect(st.destroyId);
+    st.provider.display = grid;
+    grid.show();
+    // Rows are destroyed with their display; forget them first.
+    for (const row of st.rows._rows.get_children()) this._restoreRow(row);
+    st.rows.destroy();
   }
 
   _style(display) {

@@ -1,6 +1,6 @@
 all: build install lint
 
-.PHONY: build install test-nested test-unit
+.PHONY: build install test-nested test-nested-interactive test-unit
 
 build:
 	glib-compile-schemas --strict --targetdir=schemas/ schemas
@@ -83,6 +83,9 @@ test-shell: install
 
 test-nested:
 	tests/nested/run.sh smoke
+
+test-nested-interactive:
+	tests/nested/run.sh none
 
 test-unit:
 	@for t in tests/unit/test_*.js; do [ -e "$$t" ] || continue; gjs -m "$$t" || exit 1; done

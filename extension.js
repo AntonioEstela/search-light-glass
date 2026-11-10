@@ -557,23 +557,19 @@ export default class SearchLightExt extends Extension {
   }
 
   _isDraggingIcon() {
-    // cancel all drag
+    // True while an icon of the stock overview's grid is being dragged.
+    // The apps provider shows rows in Search Light, which are not
+    // draggable, so there is nothing to find there.
     let result = false;
     try {
-      if (this._searchResults) {
-        let grid =
-          this._searchResults._content.first_child.first_child.child.child;
-        if (grid.style_class == 'grid-search-results') {
-          grid.get_children().forEach((c) => {
-            // console.log(`${c._name} ${c._draggable._dragState}`);
-            if (
-              c._draggable &&
-              c._draggable._dragState == 1 /* DragState.DRAGGING */
-            ) {
-              result = true;
-            }
-          });
-        }
+      const grid = this._searchResults?._content?.first_child?.first_child
+        ?.child?.child;
+      if (grid?.style_class === 'grid-search-results') {
+        grid.get_children().forEach((c) => {
+          if (c._draggable && c._draggable._dragState == 1 /* DRAGGING */) {
+            result = true;
+          }
+        });
       }
     } catch (err) {
       console.log(err);
