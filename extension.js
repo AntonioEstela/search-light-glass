@@ -27,11 +27,12 @@ import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import Graphene from 'gi://Graphene';
-import { trySpawnCommandLine } from 'resource:///org/gnome/shell/misc/util.js';
 
 import { Timer } from './timer.js';
 import { Style } from './style.js';
 
+import { GlassLayer } from './glass.js';
+import { resolvePalette, schemeFromColorScheme } from './theme.js';
 import { TintEffect } from './effects/tint_effect.js';
 import { MonochromeEffect } from './effects/monochrome_effect.js';
 import { BlurEffect } from './effects/blur_effect.js';
@@ -81,10 +82,16 @@ export default class SearchLightExt extends Extension {
             this._indicator.visible = value;
           }
           break;
-        case 'background-color':
         case 'blur-background':
+          this._updateGlassPresence();
+          this._updateCss();
+          break;
+        case 'blur-sigma':
+        case 'blur-brightness':
+          this._updateGlassStyle();
+          break;
+        case 'background-color':
         case 'panel-icon-color':
-          this._updateBlurredBackground();
           this._updateCss();
           break;
         case 'use-animations':
@@ -123,16 +130,9 @@ export default class SearchLightExt extends Extension {
       // console.log(`${name} ${key.value}`);
     });
 
-    this._desktopSettings = new Gio.Settings({
-      schema_id: 'org.gnome.desktop.background',
+    this._interfaceSettings = new Gio.Settings({
+      schema_id: 'org.gnome.desktop.interface',
     });
-    this._desktopSettings.connectObject(
-      'changed::picture-uri',
-      () => {
-        this._updateBlurredBackground();
-      },
-      this,
-    );
 
     this.mainContainer = new SearchLight();
     this.mainContainer._delegate = this;
@@ -217,7 +217,6 @@ export default class SearchLightExt extends Extension {
     }, 1500);
     this._updateProviders();
     this._updateWindowEffect();
-    this._updateBlurredBackground();
   }
 
   disable() {
@@ -240,8 +239,12 @@ export default class SearchLightExt extends Extension {
     this._settingsKeys.disconnectSettings();
     this._settings = null;
 
-    this._desktopSettings.disconnectObject();
-    this._desktopSettings = null;
+    this._interfaceSettings = null;
+
+    if (this._glass) {
+      this._glass.detach();
+      this._glass = null;
+    }
 
     if (this.accel) {
       this.accel.disable();
@@ -323,24 +326,6 @@ export default class SearchLightExt extends Extension {
     return effect;
   }
 
-  _updateBlurredBackground() {
-    this.desktop_background = this._desktopSettings.get_string('picture-uri');
-    
-    let uuid = GLib.get_user_name();
-    this.desktop_background_blurred = `/tmp/searchlight-${uuid}-bg-blurred.jpg`;
-
-    if (this.blur_background) {
-      //   let color = this.background_color || [0, 0, 0, 0.5];
-      //   let bg = this._desktopSettings.get_string('picture-uri');
-      //   let a = Math.floor(100 - color[3] * 100);
-      //   let rgb = this._style.hex(color);
-      // 	 let cmd = `convert -scale 10% -blur 0x2.5 -resize 200% -fill "${rgb}" -tint ${a} "${bg}" ${this.desktop_background_blurred}`;
-      let cmd = `convert -scale 10% -blur 0x2.5 -resize 200% "${this.desktop_background}" ${this.desktop_background_blurred}`;
-      console.log(cmd);
-      trySpawnCommandLine(cmd);
-    }
-  }
-
   _updateWindowEffect() {
     // this.window_effect = 2;
     // this.window_effect_color = [1, 0, 0, 0.5];
@@ -392,21 +377,7 @@ export default class SearchLightExt extends Extension {
       this._background.get_parent().remove_child(this._background);
     }
 
-    // blurred background image
-    // this._bgActor = new Meta.BackgroundActor();
-    // let bgSource = Main.layoutManager._backgroundGroup.get_child_at_index(0);
-    // this._bgActor.set_content(bgSource.get_content());
-    // this._blurEffect = new Shell.BlurEffect({
-    //   name: 'blur',
-    //   brightness: this.blur_brightness,
-    //   sigma: this.blur_sigma,
-    //   mode: Shell.BlurMode.ACTOR,
-    // });
-
-    if (!this._blurEffect) {
-      this._blurEffect = this._createEffect(1);
-    }
-
+    // Tint/border actor (CSS only). The blur lives in the glass layer.
     let background = new St.Widget({
       name: 'searchLightBlurredBackground',
       layout_manager: new Clutter.BinLayout(),
@@ -415,20 +386,6 @@ export default class SearchLightExt extends Extension {
       width: 20,
       height: 20,
     });
-
-    // let image = new St.Widget({
-    //   name: 'searchLightBlurredBackgroundImage',
-    //   x: 0,
-    //   y: 0,
-    //   width: 20,
-    //   height: 20,
-    //   effect: this._blurEffect,
-    // });
-
-    // image.add_child(this._bgActor);
-    // background.add_child(image);
-    // this._bgActor.clip_to_allocation = true;
-    // this._bgActor.offscreen_redirect = Clutter.OffscreenRedirect.ALWAYS;
 
     this.mainContainer.insert_child_below(background, this.container);
     this._background = background;
@@ -445,13 +402,14 @@ export default class SearchLightExt extends Extension {
     }
     this._acquire_ui();
 
-    if (this._bgActor) {
-      let bgSource = Main.layoutManager._backgroundGroup.get_child_at_index(0);
-      this._bgActor.set_content(bgSource.get_content());
-    }
-
     this._updateCss();
     this._layout();
+
+    if (this._glass) {
+      this._glass.detach();
+      this._glass = null;
+    }
+    this._updateGlassPresence();
 
     global.compositor.disable_unredirect();
 
@@ -510,6 +468,7 @@ export default class SearchLightExt extends Extension {
         onComplete: () => {
           this._visible = false;
           this.mainContainer.hide();
+          this._destroyGlass();
           global.compositor.enable_unredirect();
         },
       });
@@ -517,9 +476,64 @@ export default class SearchLightExt extends Extension {
       this.mainContainer.opacity = 0;
       this._visible = false;
       this.mainContainer.hide();
+      this._destroyGlass();
       global.compositor.enable_unredirect();
     }
     // this._hidePopups();
+  }
+
+  // The glass layer exists only while the panel is shown and blur is enabled.
+  _updateGlassPresence() {
+    if (this._visible && this.blur_background) {
+      if (!this._glass) {
+        this._glass = new GlassLayer();
+        this._glass.attach(this.mainContainer);
+        this._updateGlassStyle();
+        this._glass.rebuildScene();
+      }
+    } else {
+      this._destroyGlass();
+    }
+  }
+
+  _destroyGlass() {
+    if (this._glass) {
+      this._glass.detach();
+      this._glass = null;
+    }
+  }
+
+  _glassRadius() {
+    let rads = [0, 16, 18, 20, 22, 24, 28, 32];
+    return rads[Math.floor(this.border_radius)] || 28;
+  }
+
+  _glassTint() {
+    let overrides = {};
+    for (let key of [
+      'background_color',
+      'border_color',
+      'text_color',
+      'entry_text_color',
+    ]) {
+      let name = key.replace(/_/g, '-');
+      let user = this._settings?.get_user_value(name) ?? null;
+      overrides[key] = user !== null ? this[key] : null;
+    }
+    let scheme = schemeFromColorScheme(
+      this._interfaceSettings?.get_string('color-scheme'),
+    );
+    return resolvePalette({ scheme, overrides }).tint;
+  }
+
+  _updateGlassStyle() {
+    if (!this._glass) return;
+    this._glass.setStyle({
+      radius: this._glassRadius(),
+      tint: this._glassTint(),
+      blurRadius: this.blur_sigma,
+      brightness: this.blur_brightness,
+    });
   }
 
   _isDraggingIcon() {
@@ -591,19 +605,8 @@ export default class SearchLightExt extends Extension {
 
     // background
     if (this._background) {
-      if (this._bgActor) {
-        this._bgActor.set_position(this.monitor.x - x, this.monitor.y - y);
-        this._bgActor.set_size(this.monitor.width, this.monitor.height);
-        this._bgActor
-          .get_parent()
-          .set_size(this.monitor.width, this.monitor.height);
-      }
-      let padding = 0; //this.border_thickness || 0;
-      this._background.set_position(padding, padding);
-      this._background.set_size(
-        this.monitor.width - padding * 2,
-        this.monitor.height - padding * 2,
-      );
+      this._background.set_position(0, 0);
+      this._background.set_size(this.width, this.initial_height);
     }
   }
 
@@ -740,6 +743,7 @@ export default class SearchLightExt extends Extension {
       () => {
         this.container.set_size(this.width, this.height);
         this.mainContainer.set_size(this.width, this.height);
+        this._background?.set_size(this.width, this.height);
         if (this._corners) {
           this._corners[2].y = this.height - this._corners[1].height;
           this._corners[3].y = this.height - this._corners[1].height;
@@ -807,12 +811,6 @@ export default class SearchLightExt extends Extension {
       }
     }
 
-    this._background.remove_effect_by_name('blur');
-    if (this._blurEffect && this.blur_background) {
-      this._background.add_effect_with_name('blur', this._blurEffect);
-      this._blurEffect.color = bg;
-    }
-
     this._background.visible = true;
     this._background.opacity = 200;
 
@@ -837,29 +835,8 @@ export default class SearchLightExt extends Extension {
       styles.push(`#searchLightBlurredBackground {${ss.join(' ')}}`);
     }
 
-    // ss.push(`\n background-image: url("${bg}");`);
-    if (
-      this.blur_background &&
-      this.desktop_background_blurred &&
-      this.monitor
-    ) {
-      let sw = this.monitor.width;
-      let sh = this.monitor.height;
-      let ss = [];
-      // ss.push(`\n background-image: url("${BLURRED_BG_PATH}");`);
-      ss.push(
-        `\n background-image: url("${this.desktop_background_blurred}");`,
-      );
-      ss.push(`\n background-size: ${sw}px ${sh}px;`);
-      ss.push(`\n background-position: top center;`);
-      // ss.push(`\n border: 2px solid red;`);
-      this._background.style = ss.join(' ');
-
-      // styles.push(`#searchLightBlurredBackground {${ss.join(' ')}}`);
-      // styles.push(`#searchLight {${ss.join(' ')}}`);
-    } else {
-      this._background.style = '';
-    }
+    this._background.style = '';
+    this._updateGlassStyle();
 
     {
       if (this.border_radius !== null) {

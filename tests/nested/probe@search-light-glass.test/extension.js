@@ -13,6 +13,10 @@ void St;
 
 const SCENARIOS = {};
 
+// Disabling/enabling the extension under test makes the shell re-enable this
+// probe too; the scenario must run only once per shell.
+let scenarioStarted = false;
+
 // ---- scenarios (later tasks append `SCENARIOS.<name> = async ctx => {...}`) ----
 
 SCENARIOS.smoke = async ctx => {
@@ -52,12 +56,51 @@ SCENARIOS.identity = async ctx => {
   );
 };
 
+SCENARIOS.glass = async ctx => {
+  ctx.ext._settings.set_boolean('blur-background', true);
+  await ctx.wait(300);
+  ctx.ext.show(); await ctx.wait(800);
+  const g = ctx.ext._glass?.actor, p = ctx.ext.mainContainer;
+  ctx.check('glass-exists', !!g);
+  ctx.check('glass-below-panel', g && g.get_parent() === p.get_parent() &&
+    g.get_parent().get_children().indexOf(g) < g.get_parent().get_children().indexOf(p));
+  const near = (a, b) => Math.abs(a - b) <= 1;
+  ctx.check('glass-aligned', g && near(g.x + 40, p.x) && near(g.y + 40, p.y) && near(g.width - 80, p.width));
+  ctx.check('effects', g && !!g.get_effect('glass') && !!g.get_effect('blur'));
+  await ctx.shot('glass-empty.png');
+  ctx.type('settings'); await ctx.wait(1500);
+  ctx.check('glass-tracks-panel-after-typing', g && near(g.height - 80, p.height) && p.height > ctx.ext.initial_height);
+  await ctx.shot('glass-typed.png');
+  global.display.emit('window-created', global.display.list_all_windows()[0]); await ctx.wait(300);
+  ctx.check('glass-hidden-on-window-created', g && (g.opacity === 0 || !g.visible));
+  ctx.ext.hide(); await ctx.wait(1000);
+  ctx.check('glass-gone-after-hide', ctx.ext._glass?.actor == null);
+};
+
+SCENARIOS.leak = async ctx => {
+  const uuid = 'search-light-glass@antonioestela.github.com';
+  const count = () => Main.layoutManager.uiGroup.get_children().length;
+  ctx.ext._settings.set_boolean('blur-background', true);
+  await ctx.wait(300);
+  ctx.ext.show(); await ctx.wait(800); ctx.ext.hide(); await ctx.wait(800);
+  const before = count();
+  Main.extensionManager.disableExtension(uuid); await ctx.wait(500);
+  Main.extensionManager.enableExtension(uuid); await ctx.wait(1500);
+  ctx.check('no-leak-after-disable', count() === before, `${before} -> ${count()}`);
+  Main.overview.searchLight._settings.set_boolean('blur-background', true);
+  await ctx.wait(300);
+  Main.overview.searchLight.show(); await ctx.wait(800);
+  ctx.check('reenable-works', !!Main.overview.searchLight._glass?.actor);
+  Main.overview.searchLight.hide(); await ctx.wait(1000);
+};
+
 // ---- end scenarios ----
 
 export default class ProbeExtension extends Extension {
   enable() {
     const name = GLib.getenv('PROBE_SCENARIO') || 'smoke';
-    if (name === 'none') return;
+    if (name === 'none' || scenarioStarted) return;
+    scenarioStarted = true;
     this._outDir = GLib.getenv('PROBE_OUT') || GLib.get_tmp_dir();
     this._timeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
       this._timeout = 0;
