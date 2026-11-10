@@ -87,8 +87,7 @@ SCENARIOS.glass = async ctx => {
   await ctx.shot('glass-typed.png');
   const wins = global.display.list_all_windows();
   global.display.emit('window-created', wins[0]); await ctx.wait(300);
-  const dbg = `wins=${wins.length} anim=${ctx.ext._useAnimations}`;
-  ctx.check('glass-hidden-on-window-created', g && (g.opacity === 0 || !g.visible), `g=${!!g} op=${g?.opacity} vis=${g?.visible} panel=${p.opacity} shown=${ctx.ext._visible} ${dbg}`);
+  ctx.check('glass-hidden-on-window-created', g && (g.opacity === 0 || !g.visible), `g=${!!g} op=${g?.opacity} vis=${g?.visible} panel=${p.opacity} shown=${ctx.ext._visible}`);
   ctx.ext.hide(); await ctx.wait(1000);
   ctx.check('glass-gone-after-hide', ctx.ext._glass?.actor == null);
 };
@@ -161,6 +160,42 @@ SCENARIOS.theme = async ctx => {
   ctx.check('no-glass-when-blur-off', ctx.ext._glass?.actor == null);
   await ctx.shot('theme-noblur.png');
   ctx.ext.hide(); await ctx.wait(1000);
+};
+
+// A user-set text-color must reach titles, subtitles, section titles.
+SCENARIOS.textcolor = async ctx => {
+  const lists = () => ctx.ext._searchResults._providers.map(p => p.display)
+    .filter(d => d && d._container && d.providerInfo);
+  const red = c => c.red === 255 && c.green === 0 && c.blue === 0;
+  const fg = a => a.get_theme_node().get_foreground_color();
+  const settings = ctx.ext._settings;
+  const walk = (a, f) => { f(a); a.get_children?.().forEach(k => walk(k, f)); };
+  settings.set_value('text-color', new GLib.Variant('(dddd)', [1, 0, 0, 1]));
+  await ctx.wait(300);
+  ctx.ext.show(); await ctx.wait(400); ctx.type('settings'); await ctx.wait(1500);
+  const row = lists()[0]?._content.get_child_at_index(0);
+  const title = row?.label_actor;
+  ctx.check('title-red', title && red(fg(title)), title && fg(title).to_string());
+  // Every visible label in the results (titles, subtitles, section titles,
+  // including those under .list-search-result-title) must be red.
+  const notRed = [];
+  let nLabels = 0;
+  walk(ctx.ext._searchResults, a => {
+    if (a instanceof St.Label && a.mapped && a.get_text()) {
+      nLabels++;
+      if (!red(fg(a))) notRed.push(`${a.get_text()}:${fg(a).to_string()}`);
+    }
+  });
+  ctx.check('all-result-labels-red', nLabels > 0 && notRed.length === 0, `${nLabels} labels; not red: ${notRed.slice(0, 4).join(', ')}`);
+  const desc = row?._descriptionLabel;
+  ctx.check('subtitle-red', desc && red(fg(desc)), desc && fg(desc).to_string());
+  let secTitle = null;
+  walk(ctx.ext.container, a => { if (!secTitle && a.has_style_class_name?.('slg-section-title')) secTitle = a; });
+  ctx.check('section-title-red', secTitle && red(fg(secTitle)), secTitle && fg(secTitle).to_string());
+  await ctx.shot('textcolor.png');
+  ctx.ext.hide(); await ctx.wait(800);
+  settings.reset('text-color');
+  await ctx.wait(300);
 };
 
 SCENARIOS['show-interrupts-hide'] = async ctx => {
@@ -286,7 +321,7 @@ SCENARIOS.shots = async ctx => {
 // (the leak scenario replaces it, so it runs last), a clean settings state and
 // a fresh show()/hide() cycle.
 SCENARIOS.all = async ctx => {
-  const names = Object.keys(SCENARIOS).filter(n => !['all', 'none', 'leak'].includes(n));
+  const names = Object.keys(SCENARIOS).filter(n => !['all', 'none', 'leak', 'shots'].includes(n));
   const only = GLib.getenv('PROBE_ONLY');
   if (only) names.splice(0, names.length, ...only.split(','));
   else names.push('leak');

@@ -904,6 +904,26 @@ export default class SearchLightExt extends Extension {
       `#searchLightBox > StEntry, #searchLightBox > StEntry:focus { color: rgba(${this._style.rgba(palette.entryText)}) !important }`,
     );
 
+    // Results text derives from the same color, so a user-set text color
+    // reaches titles, subtitles and section titles. These selectors must be
+    // at least as specific as the layout rules in stylesheet.css.
+    {
+      const shade = (a) => {
+        const t = palette.text;
+        return this._style.rgba([t[0], t[1], t[2], t[3] * a]);
+      };
+      const title = shade(palette.isLight ? 0.88 : 0.92);
+      const dim = shade(0.55);
+      styles.push(
+        `#searchLightBox .slg-section .list-search-result,
+#searchLightBox .slg-section .list-search-result-title StLabel { color: rgba(${title}) !important }`,
+        `#searchLightBox .slg-section .list-search-result-description,
+#searchLightBox .slg-section .slg-section-title,
+#searchLightBox .slg-section .search-provider-icon,
+#searchLightBox .slg-section .search-provider-icon StLabel { color: rgba(${dim}) !important }`,
+      );
+    }
+
     // icon color
     {
       let ss = [];
