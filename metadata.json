@@ -1,12 +1,12 @@
 {
-  "name": "Search Light",
-  "description": "Take the apps search out of overview.",
-  "uuid": "search-light@icedman.github.com",
+  "name": "Search Light Glass",
+  "description": "Take the apps search out of overview. A fork of Search Light with a glass-styled panel.",
+  "uuid": "search-light-glass@antonioestela.github.com",
   "shell-version": [
     "48", "49", "50"
   ],
-  "url": "https://github.com/icedman/search-light",
-  "schema-id": "org.gnome.shell.extensions.search-light",
-  "gettext-domain": "search-light",
-  "version": 101
+  "url": "https://github.com/AntonioEstela/search-light-glass",
+  "schema-id": "org.gnome.shell.extensions.search-light-glass",
+  "gettext-domain": "search-light-glass",
+  "version": 1
 }

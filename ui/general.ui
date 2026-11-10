@@ -16,17 +16,11 @@
             <property name="orientation">horizontal</property>
             <child>
               <object class="GtkLabel">
-                <property name="label">Thank you for using &lt;b>Search Light&lt;/b>! Support development of this extension — &lt;a href="https://www.buymeacoffee.com/icedman">Buy Me a Coffee&lt;/a>
-                </property>
+                <property name="label">Thank you for using &lt;b>Search Light Glass&lt;/b>, a fork of &lt;a href="https://github.com/icedman/search-light">Search Light&lt;/a> by icedman.</property>
                 <property name="use-markup">true</property>
                 <property name="xalign">0</property>
                 <property name="wrap">true</property>
                 <property name="hexpand">true</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImage" id="qr">
-                <property name="pixel-size">96</property>
               </object>
             </child>
           </object>

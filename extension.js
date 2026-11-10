@@ -909,7 +909,7 @@ export default class SearchLightExt extends Extension {
     }
 
     // console.log(styles);
-    this._style.build('custom-search-light', styles);
+    this._style.build('custom-search-light-glass', styles);
   }
 
   _toggle_search_light() {

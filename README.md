@@ -1,3 +1,15 @@
+# Search Light Glass
+
+A fork of [Search Light](https://github.com/icedman/search-light) by [icedman](https://github.com/icedman), the GNOME Shell extension that takes the apps search out of the Overview. Search Light Glass installs side by side with the original: it has its own extension UUID (`search-light-glass@antonioestela.github.com`), settings schema and stylesheet class, so the two do not share settings.
+
+- Tested on GNOME 50 only. GNOME 48 and 49 are declared in `metadata.json` but untested.
+- Licensed under GPL-3.0, like the original. The original copyright stays; see `LICENSE`.
+- Upstream credit: all of the underlying extension is icedman's work.
+
+The sections below are the upstream README.
+
+---
+
 <br/>
 <p align="center">
   <h3 align="center">Search Light</h3>
@@ -9,14 +21,12 @@
   </p>
 </p>
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/icedman)
-
 ![Contributors](https://img.shields.io/github/contributors/icedman/search-light?color=dark-green) ![Forks](https://img.shields.io/github/forks/icedman/search-light?style=social) ![Stargazers](https://img.shields.io/github/stars/icedman/search-light?style=social) ![Issues](https://img.shields.io/github/issues/icedman/search-light) ![License](https://img.shields.io/github/license/icedman/search-light) 
 
 ![First Release](https://raw.githubusercontent.com/icedman/search-light/main/screenshots/Screenshot%20from%202022-11-03%2011-53-28.png)
 
 
-This is a Gnome Shell extension that takes the apps search widget out of Overview. Like the macOS spotlight, or Alfred.
+This is a Gnome Shell extension that takes the apps search widget out of Overview. Like Alfred.
 
 ### Notice
 

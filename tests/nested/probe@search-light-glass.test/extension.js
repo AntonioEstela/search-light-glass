@@ -41,6 +41,17 @@ SCENARIOS.hidecycle = async ctx => {
   await ctx.wait(1000);
 };
 
+SCENARIOS.identity = async ctx => {
+  const ext = Main.extensionManager.lookup(
+    'search-light-glass@antonioestela.github.com'
+  );
+  ctx.check('uuid-active', ext?.state === 1 /* ACTIVE */, `state=${ext?.state}`);
+  ctx.check(
+    'schema-id',
+    ctx.ext._settings.schema_id === 'org.gnome.shell.extensions.search-light-glass'
+  );
+};
+
 // ---- end scenarios ----
 
 export default class ProbeExtension extends Extension {

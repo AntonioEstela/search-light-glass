@@ -6,8 +6,8 @@ build:
 	glib-compile-schemas --strict --targetdir=schemas/ schemas
 
 install:
-	mkdir -p ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com/
-	cp -R ./* ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com/
+	mkdir -p ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
+	cp -R ./* ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
 
 publish:
 	rm -rf build
@@ -30,13 +30,13 @@ publish:
 	rm -rf ./build/imports_*
 	rm -rf ./*.zip
 	cd build ; \
-	zip -qr ../search-light@icedman.github.com.zip .
+	zip -qr ../search-light-glass@antonioestela.github.com.zip .
 
 install-zip: publish
 	echo "installing zip..."
-	rm -rf ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com
-	mkdir -p ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com/
-	unzip -q search-light@icedman.github.com.zip -d ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com/
+	rm -rf ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com
+	mkdir -p ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
+	unzip -q search-light-glass@antonioestela.github.com.zip -d ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
 
 g44: build
 	rm -rf ./build
@@ -44,8 +44,8 @@ g44: build
 	mkdir -p ./build/apps
 	mkdir -p ./build/preferences
 	python3 ./transpile.py
-	rm -rf ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com/
-	mkdir -p ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com/
+	rm -rf ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
+	mkdir -p ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
 	cp -R ./schemas ./build
 	cp -R ./ui ./build
 	cp ./apps/*.desktop ./build/apps
@@ -54,15 +54,15 @@ g44: build
 	cp ./CHANGELOG* ./build
 	cp ./README* ./build
 	cp ./stylesheet.css ./build
-	cp -r ./build/* ~/.local/share/gnome-shell/extensions/search-light@icedman.github.com/
+	cp -r ./build/* ~/.local/share/gnome-shell/extensions/search-light-glass@antonioestela.github.com/
 
 publish-g44: g44
 	echo "publishing..."
 	cd build ; \
-	zip -qr ../search-light@icedman.github.com.zip .
+	zip -qr ../search-light-glass@antonioestela.github.com.zip .
 
 test-prefs-g44: g44
-	gnome-extensions prefs search-light@icedman.github.com
+	gnome-extensions prefs search-light-glass@antonioestela.github.com
 
 test-shell-g44: g44
 	env GNOME_SHELL_SLOWDOWN_FACTOR=2 \
@@ -72,7 +72,7 @@ test-shell-g44: g44
 	rm /run/user/1000/gnome-shell-disable-extensions
 
 test-prefs:
-	gnome-extensions prefs search-light@icedman.github.com
+	gnome-extensions prefs search-light-glass@antonioestela.github.com
 
 test-shell: install
 	env GNOME_SHELL_SLOWDOWN_FACTOR=1 \
