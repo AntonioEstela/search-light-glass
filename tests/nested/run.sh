@@ -31,7 +31,7 @@ if [ "${NESTED_INNER:-}" != 1 ]; then
     cp *.js "$EXT"/
     cp -r ui preferences effects apps schemas "$EXT"/
   )
-  rm -f "$EXT"/_*.js "$EXT"/imports_*
+  rm -f "$EXT"/_*.js "$EXT"/utils.js "$EXT"/drawing.js "$EXT"/chamfer.js "$EXT"/imports_*
   rm -f "$EXT"/schemas/gschemas.compiled
   glib-compile-schemas --strict "$EXT/schemas" || exit 2
   cp "$ROOT"/tests/nested/probe@search-light-glass.test/* "$TMP/data/gnome-shell/extensions/$PROBE_UUID/"
@@ -41,6 +41,7 @@ if [ "${NESTED_INNER:-}" != 1 ]; then
   export NESTED_INNER=1 NESTED_UUID="$UUID" NESTED_PROBE_UUID="$PROBE_UUID"
   dbus-run-session -- "$0" "$SCENARIO" "$OUT"
   rc=$?
+  [ "$rc" = 3 ] && exit 3 # enable failure already reported
   [ "$SCENARIO" = none ] && exit "$rc"
   if [ -f "$OUT/report.json" ]; then
     python3 - "$OUT/report.json" <<'PY'
@@ -74,16 +75,26 @@ done
 WAYLAND_DISPLAY=$DISPLAY_NAME gnome-text-editor >/dev/null 2>&1 &
 sleep 3
 
-enable() {
-  gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
-    --method org.gnome.Shell.Extensions.EnableExtension "$1" >/dev/null
-}
-# Extension discovery can lag behind shell startup; retry until it is enabled.
+SHELL_CALL=(gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell)
+ext_info() { "${SHELL_CALL[@]}" --method org.gnome.Shell.Extensions.GetExtensionInfo "$1" 2>&1; }
+# Extension discovery can lag behind shell startup; retry until the extension
+# is listed, then require it to reach ACTIVE (state 1).
 for u in "$NESTED_UUID" "$NESTED_PROBE_UUID"; do
-  for _ in 1 2 3 4 5 6 7 8; do
-    [ "$(enable "$u" 2>&1; gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Extensions.ListExtensions | grep -c "'$u'")" -gt 0 ] && break
-    sleep 1
+  state=""
+  info=""
+  for _ in $(seq 10); do
+    "${SHELL_CALL[@]}" --method org.gnome.Shell.Extensions.EnableExtension "$u" >/dev/null 2>&1
+    sleep 0.5
+    info="$(ext_info "$u")"
+    state="$(printf '%s' "$info" | sed -n "s/.*'state': <\([0-9]*\).*/\1/p")"
+    [ "$state" = 1 ] && break
+    sleep 0.5
   done
+  if [ "$state" != 1 ]; then
+    err="$(printf '%s' "$info" | sed -n "s/.*'error': <'\([^']*\)'.*/\1/p")"
+    echo "FAIL enable: $u state=${state:-unknown} error=${err:-none}"
+    exit 3
+  fi
 done
 
 if [ "$PROBE_SCENARIO" = none ]; then

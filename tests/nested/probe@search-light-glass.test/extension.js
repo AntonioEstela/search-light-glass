@@ -24,9 +24,21 @@ SCENARIOS.smoke = async ctx => {
     ctx.ext.mainContainer.visible && ctx.ext._visible === true
   );
   await ctx.shot('smoke.png');
-  // NOTE: ext.hide() is deliberately not called here: on GNOME Shell 50.1 the
-  // upstream hide() path aborts the nested shell (Clutter unrealize assertion
-  // while reparenting the search controller). Revisit once the fork reworks it.
+  ctx.ext.hide();
+  await ctx.wait(1000);
+};
+
+SCENARIOS.hidecycle = async ctx => {
+  ctx.ext.show();
+  await ctx.wait(800);
+  ctx.ext.hide();
+  await ctx.wait(1000);
+  ctx.check('survived-hide', true);
+  ctx.ext.show();
+  await ctx.wait(800);
+  ctx.check('reshown', ctx.ext._visible === true);
+  ctx.ext.hide();
+  await ctx.wait(1000);
 };
 
 // ---- end scenarios ----
