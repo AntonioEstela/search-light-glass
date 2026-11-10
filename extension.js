@@ -39,6 +39,7 @@ import { BlurEffect } from './effects/blur_effect.js';
 
 import { schemaId, SettingsKeys } from './preferences/keys.js';
 import { KeyboardShortcuts } from './keybinding.js';
+import { ResultsRestyler } from './results.js';
 
 import {
   Extension,
@@ -734,6 +735,8 @@ export default class SearchLightExt extends Extension {
     this._search.add_style_class_name('slc-results');
     this._searchResults = this._search._searchResults;
     this._searchParent = this._search.get_parent();
+    this._restyler = new ResultsRestyler(this._searchResults);
+    this._restyler.apply();
 
     if (!this._searchResults._activateDefault) {
       this._searchResults._activateDefault =
@@ -784,6 +787,9 @@ export default class SearchLightExt extends Extension {
       this._entryParent.add_child(this._entry);
       this._entry = null;
     }
+
+    this._restyler?.restore();
+    this._restyler = null;
 
     if (this._search) {
       this._removeProviders();

@@ -2,33 +2,15 @@
   /* border: 2px solid red; */
 }
 
+/* Search results: tiles and list rows stay transparent, selection is drawn
+   by the pill rules at the end of this file. */
 #searchLight .overview-tile,
 #searchLight .search-provider-icon,
 #searchLight .list-search-provider-content,
-#searchLight .list-search-result {
-	background-color: transparent;
-}
-#searchLight .overview-tile:selected,
-#searchLight .list-search-result:selected {
-	background-color: rgba(128,128,128,0.4);
-}
-#searchLight .overview-tile:hover, 
-#searchLight .overview-tile:active,
-#searchLight .overview-tile:focus,
-#searchLight .search-provider-icon:hover,
-#searchLight .list-search-provider-content:hover,
-#searchLight .list-search-result:hover,
-#searchLight .search-provider-icon:active,
-#searchLight .list-search-provider-content:active,
-#searchLight .list-search-result:active,
-#searchLight .search-provider-icon:focus,
-#searchLight .list-search-provider-content:focus,
-#searchLight .list-search-result:focus {
-	background-color: rgba(128,128,128,0.2);
-}
-
+#searchLight .list-search-result,
 #searchLight .search-section-content {
-	background-color: rgba(0,0,0,0.2) !important;
+  background-color: transparent;
+  box-shadow: none;
 }
 
 /* Glass chrome. Colors and radius come from the generated stylesheet; the
@@ -57,7 +39,8 @@
 #searchLightBox > StEntry {
   padding: 18px!important;
 	margin-top: 0px !important;
-  margin-bottom: 20px !important;
+  /* No bottom margin: the results divider sits directly under the field. */
+  margin-bottom: 0px !important;
 	border-radius: 8px;
   border: 0px !important;
   border-width: 0px !important;
@@ -69,17 +52,119 @@
   /*border: 2px solid red;*/
 }
 
-#searchLightBox.light StBoxLayout.search-section-content *:focus,
-#searchLightBox.light StBoxLayout.search-section-content {
-  background: rgba(50,50,50,0.10) !important;
-}
-
-#searchLightBox StBoxLayout.search-section-content *:focus,
-#searchLightBox StBoxLayout.search-section-content {
-  background: rgba(100,100,100,0.20) !important;
-}
-
 #searchLight #searchResultsContent {
   padding-left: 12px;
   padding-right: 12px;
+}
+
+/* Results as sections (single column, title over a thin line). */
+#searchLightBox .slg-section .search-section-content {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+#searchLightBox .search-section-separator {
+  height: 0;
+  background-color: transparent;
+}
+
+#searchLightBox .slg-section .search-provider-icon {
+  padding: 10px 8px 6px 8px;
+  margin: 0;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#searchLightBox .slg-section .search-provider-icon StLabel {
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#searchLightBox .slg-section .list-search-provider-details {
+  spacing: 8px;
+}
+
+#searchLightBox .slg-section .list-search-provider-content,
+#searchLightBox .slg-section .list-search-provider-details {
+  padding: 0;
+  margin: 0;
+  background-color: transparent;
+}
+
+/* The thin line under the section title (drawn on the rows container: a
+   border on the title button itself is not painted). */
+#searchLightBox .slg-section .list-search-results {
+  spacing: 2px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+#searchLightBox .slg-section .list-search-result {
+  padding: 7px 8px;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 13px;
+  border: 0;
+}
+
+#searchLightBox .slg-section .list-search-result-title {
+  spacing: 10px;
+}
+
+#searchLightBox .slg-section .list-search-result-title StLabel {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+#searchLightBox .slg-section .list-search-result-description {
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-size: 11px;
+  padding-left: 8px;
+}
+
+#searchLightBox .slg-section .list-search-result:selected,
+#searchLightBox .slg-section .list-search-result:focus,
+#searchLightBox .slg-section .list-search-result:hover,
+#searchLightBox .overview-tile:selected,
+#searchLightBox .overview-tile:focus,
+#searchLightBox .overview-tile:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+#searchLightBox.light .slg-section .list-search-results {
+  border-top: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+#searchLightBox.light .slg-section .search-provider-icon {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
+#searchLightBox.light .slg-section .search-provider-icon StLabel {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
+#searchLightBox.light .slg-section .list-search-result {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+#searchLightBox.light .slg-section .list-search-result-title StLabel {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+#searchLightBox.light .slg-section .list-search-result-description {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
+#searchLightBox.light .slg-section .list-search-result:selected,
+#searchLightBox.light .slg-section .list-search-result:focus,
+#searchLightBox.light .slg-section .list-search-result:hover,
+#searchLightBox.light .overview-tile:selected,
+#searchLightBox.light .overview-tile:focus,
+#searchLightBox.light .overview-tile:hover {
+  background-color: rgba(0, 0, 0, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
 }

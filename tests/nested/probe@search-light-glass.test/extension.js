@@ -118,6 +118,22 @@ SCENARIOS['show-interrupts-hide'] = async ctx => {
   ctx.ext.hide(); await ctx.wait(1000);
 };
 
+SCENARIOS.sections = async ctx => {
+  const lists = () => ctx.ext._searchResults._providers.map(p => p.display)
+    .filter(d => d && d._container && d.providerInfo);
+  ctx.ext.show(); await ctx.wait(400); ctx.type('settings'); await ctx.wait(1500);
+  ctx.check('has-list-sections', lists().length > 0);
+  ctx.check('sections-vertical', lists().every(d =>
+    d._container.orientation === Clutter.Orientation.VERTICAL && d.has_style_class_name('slg-section')));
+  await ctx.shot('sections.png');
+  ctx.ext.hide(); await ctx.wait(800);
+  Main.overview.show(); await ctx.wait(1200); ctx.type('settings'); await ctx.wait(1500);
+  ctx.check('overview-restored', lists().every(d =>
+    d._container.orientation === Clutter.Orientation.HORIZONTAL && !d.has_style_class_name('slg-section')));
+  await ctx.shot('overview.png');
+  Main.overview.hide();
+};
+
 // ---- end scenarios ----
 
 export default class ProbeExtension extends Extension {
