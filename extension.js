@@ -202,16 +202,6 @@ export default class SearchLightExt extends Extension {
       this,
     );
 
-    global.display.connectObject(
-      'window-created',
-      (display, win) => {
-        if (this._visible) {
-          this.mainContainer.opacity = 0;
-        }
-      },
-      this,
-    );
-
     this._loTimer.runOnce(() => {
       // this.show();
     }, 500);
@@ -952,6 +942,12 @@ export default class SearchLightExt extends Extension {
     );
 
     global.display.connectObject(
+      'window-created',
+      () => {
+        if (this._visible) {
+          this.mainContainer.opacity = 0;
+        }
+      },
       'notify::focus-window',
       this._onFocusWindow.bind(this),
       'in-fullscreen-changed',
