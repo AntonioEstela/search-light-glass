@@ -876,7 +876,11 @@ export default class SearchLightExt extends Extension {
 
       // With blur on, the glass layer paints the tint.
       if (!this.blur_background) {
-        let clr = this._style.rgba(palette.tint);
+        // Without blur the panel stays near-opaque for legibility (what the
+        // former double paint, with the 200/255 backdrop, produced).
+        const [r, g, b, a] = palette.tint;
+        const eff = 1 - (1 - a) * (1 - a * (200 / 255));
+        let clr = this._style.rgba([r, g, b, eff]);
         ss.push(`\n  background: rgba(${clr});`);
       }
 
@@ -885,8 +889,8 @@ export default class SearchLightExt extends Extension {
         ss.push(`\n  border: ${this.border_thickness}px solid rgba(${clr});`);
       }
 
+      // Painted once, on the outermost actor only.
       styles.push(`#searchLight {${ss.join(' ')}}`);
-      styles.push(`#searchLightBlurredBackground {${ss.join(' ')}}`);
     }
 
     this._background.style = '';
