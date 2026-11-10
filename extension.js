@@ -492,8 +492,11 @@ export default class SearchLightExt extends Extension {
       return;
     }
 
-    this._release_ui();
+    // Stop listening for key-focus changes first: taking the entry out of the
+    // panel drops the stage key focus, which would re-enter hide() while
+    // _release_ui() is still reparenting actors.
     this._remove_events();
+    this._release_ui();
 
     if (this._useAnimations) {
       this.mainContainer.ease({
